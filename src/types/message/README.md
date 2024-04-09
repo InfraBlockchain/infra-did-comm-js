@@ -43,13 +43,14 @@ There are 3 types of `DidConnectRequestMessage`:
         type: String,
       	from: String,
         created_time: Number,
+        expires_time: Number,
       	initiator: Initiator,
       	context: Context
         ) {
             this.type = type;
             this.from = from;
             this.created_time = created_time;
-            this.expires_time = data.expires_time;
+            this.expires_time = expires_time;
             this.body = {
                 initiator: initiator,
                 context: context
@@ -104,7 +105,8 @@ There are 3 types of `DidConnectRequestMessage`:
 
 ### DIDAuthInitMessage
 
--   **SHOULD** be signed by the creator's **_ephemeral key_**(a.k.a epk)
+-   **SHOULD** be signed by the creator's **_DID-Private-Key_**
+-   **SHOULD** be encrypted by **_ephemeral key_**
 
 ```javascript
 class DIDAuthInitMessage {
@@ -124,9 +126,24 @@ class DIDAuthInitMessage {
 }
 ```
 
+-   JWE JOSE Header
+
+```JSON
+{
+  "alg": "ECDH-ES",
+  "enc": "A256GCM",
+  "epk": {
+    "kty": "OKP",
+	  "crv": "X25519", // TODO check
+    "x": "YFLItywqsMWAJ9JuBa_UEIxEQKpxzpy7LvBxYWHhOCM",
+  }
+}
+```
+
 ### DIDAuthMessage
 
--   **SHOULD** be signed by the message creator DID, and encrypted by **_DID-Shared-Secret-Key_** of DIDs
+-   **SHOULD** be signed by the message creator DID
+-   **SHOULD** be encrypted by **_DID-Shared-Secret-Key_** of DIDs
 -   The counter party’s **socket ID is used as challenge value** of DID-Auth signature
 
 ```javascript
@@ -144,6 +161,15 @@ class DIDAuthMessage {
       peerSocketId: peerSocketId
     };
   }
+}
+```
+
+-   JWE JOSE HEADER
+
+```JSON
+{
+  "alg": "dir",
+  "enc": "A256GCM"
 }
 ```
 
@@ -168,6 +194,15 @@ class DIDAuthFailedMessage {
 }
 ```
 
+-   JWE JOSE Header
+
+```JSON
+{
+  "alg": "dir",
+  "enc": "A256GCM"
+}
+```
+
 ### DIDConnectedMessage
 
 -   **SHOULD** be encrypted by **_DID-Shared-Secret-Key of DIDs_**
@@ -186,6 +221,15 @@ class DIDConnectedMessage {
       status: status
     };
   }
+}
+```
+
+-   JWE JOSE HEADER
+
+```JSON
+{
+  "alg": "dir",
+  "enc": "A256GCM"
 }
 ```
 
