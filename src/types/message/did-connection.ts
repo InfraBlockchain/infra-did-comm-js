@@ -18,15 +18,8 @@ export class DIDConnectRequestMessage {
     created_time: number;
     expires_time: number;
     body: {
-        initiator: {
-            type: string;
-            service_endpoint: string;
-            socketId: string;
-        };
-        context: {
-            did: string;
-            name: string;
-        };
+        initiator: Initiator;
+        context: Context;
     };
     /**
      * Constructs a DIDConnectRequestMessage instance.
@@ -42,15 +35,8 @@ export class DIDConnectRequestMessage {
         from: string,
         created_time: number,
         expires_time: number,
-        initiator: {
-            type: string;
-            service_endpoint: string;
-            socketId: string;
-        },
-        context: {
-            did: string;
-            name: string;
-        },
+        initiator: Initiator,
+        context: Context,
     ) {
         this.type = type;
         this.from = from;
@@ -61,12 +47,132 @@ export class DIDConnectRequestMessage {
             context: context,
         };
     }
+
+    /**
+     * Converts the instance to a standard JSON object.
+     * @returns {object} The JSON representation of the instance.
+     */
+    toJSON(): object {
+        return {
+            type: this.type,
+            from: this.from,
+            created_time: this.created_time,
+            expires_time: this.expires_time,
+            body: this.body,
+        };
+    }
+
+    /**
+     * Converts the instance to a compact JSON object, with abbreviated keys.
+     * @returns {object} The compact JSON representation of the instance.
+     */
+    toCompactJSON(): object {
+        return {
+            type: this.type,
+            from: this.from,
+            created_time: this.created_time,
+            expires_time: this.expires_time,
+            body: {
+                i: {
+                    se: this.body.initiator.service_endpoint,
+                    sid: this.body.initiator.socketId,
+                },
+                c: {
+                    d: this.body.context.domain,
+                    a: this.body.context.action,
+                },
+            },
+        };
+    }
+
+    /**
+     * Converts the instance to a minimal JSON object, containing only the most essential information.
+     * @returns {object} The minimal JSON representation of the instance.
+     */
+    toMinimalJSON(): object {
+        return {
+            type: this.type,
+            from: this.from,
+            created_time: this.created_time,
+            expires_time: this.expires_time,
+            body: {
+                i: {
+                    sid: this.body.initiator.socketId,
+                },
+                c: {
+                    d: this.body.context.domain,
+                    a: this.body.context.action,
+                },
+            },
+        };
+    }
+
+    /**
+     * Creates an instance from a JSON object.
+     * @param {any} json - The JSON object to convert from.
+     * @returns {DIDConnectRequestMessage} The new instance created from the JSON object.
+     * @throws {Error} Throws an error if the JSON object is missing required keys.
+     */
+    fromJSON(json: any): DIDConnectRequestMessage {
+        if (
+            !json.type ||
+            !json.from ||
+            !json.created_time ||
+            !json.expires_time
+        ) {
+            throw new Error("Invalid JSON: Missing required keys");
+        }
+
+        let initiator: Initiator;
+
+        // Use type guards to differentiate between CompactJSON and MinimalJSON
+        if ("i" in json.body && "se" in json.body.i) {
+            // Compact format
+            const compact: CompactJSON = json;
+            initiator = {
+                service_endpoint: compact.body.i.se,
+                socketId: compact.body.i.sid,
+            };
+        } else if ("i" in json.body) {
+            // Minimal format
+            const minimal: MinimalJSON = json;
+            initiator = {
+                socketId: minimal.body.i.sid,
+            };
+        } else {
+            throw new Error("Invalid JSON: Unrecognized format");
+        }
+
+        const context = {
+            domain: json.body.c.d,
+            action: json.body.c.a,
+        };
+
+        return new DIDConnectRequestMessage(
+            json.type,
+            json.from,
+            json.created_time,
+            json.expires_time,
+            initiator,
+            context,
+        );
+    }
 }
 
-/**
- * Represents a compact version of the DIDConnectRequestMessage with abbreviated properties.
- */
-export class CompactDIDConnectRequestMessage {
+// Define types for initiator and context to ensure type safety
+type Initiator = {
+    type?: string;
+    service_endpoint?: string;
+    socketId: string;
+};
+
+type Context = {
+    domain: string;
+    action: string;
+};
+
+// Define interfaces for CompactJSON and MinimalJSON formats
+interface CompactJSON {
     type: string;
     from: string;
     created_time: number;
@@ -81,48 +187,9 @@ export class CompactDIDConnectRequestMessage {
             a: string;
         };
     };
-    /**
-     * Constructs a CompactDIDConnectRequestMessage instance.
-     * @param {String} type - The type of the message.
-     * @param {String} from - The sender of the message.
-     * @param {Number} created_time - The creation time of the message.
-     * @param {Number} expires_time - The expiration time of the message.
-     * @param {String} service_endpoint - The service endpoint in the initiator object.
-     * @param {String} socketId - The socket ID in the initiator object.
-     * @param {String} domain - The domain in the context object.
-     * @param {String} action - The action in the context object.
-     */
-    constructor(
-        type: string,
-        from: string,
-        created_time: number,
-        expires_time: number,
-        service_endpoint: string,
-        socketId: string,
-        domain: string,
-        action: string,
-    ) {
-        this.type = type;
-        this.from = from;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
-        this.body = {
-            i: {
-                se: service_endpoint,
-                sid: socketId,
-            },
-            c: {
-                d: domain,
-                a: action,
-            },
-        };
-    }
 }
 
-/**
- * Represents the most minimal version of the DIDConnectRequestMessage with only essential properties which assumes partipants know which websocket server to connect
- */
-export class MinimalCompactDIDConnectRequestMessage {
+interface MinimalJSON {
     type: string;
     from: string;
     created_time: number;
@@ -136,37 +203,4 @@ export class MinimalCompactDIDConnectRequestMessage {
             a: string;
         };
     };
-    /**
-     * Constructs a MinimalCompactDIDConnectRequestMessage instance.
-     * @param {String} type - The type of the message.
-     * @param {String} from - The sender of the message.
-     * @param {Number} created_time - The creation time of the message.
-     * @param {Number} expires_time - The expiration time of the message.
-     * @param {String} socketId - The socket ID in the initiator object.
-     * @param {String} domain - The domain in the context object.
-     * @param {String} action - The action in the context object.
-     */
-    constructor(
-        type: string,
-        from: string,
-        created_time: number,
-        expires_time: number,
-        socketId: string,
-        domain: string,
-        action: string,
-    ) {
-        this.type = type;
-        this.from = from;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
-        this.body = {
-            i: {
-                sid: socketId,
-            },
-            c: {
-                d: domain,
-                a: action,
-            },
-        };
-    }
 }
