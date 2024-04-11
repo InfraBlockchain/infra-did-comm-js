@@ -1,3 +1,4 @@
-export function test() { 
-    console.log('Hello World');
-}
+import * as common from "./common";
+import * as types from "./types";
+
+export { common, types };

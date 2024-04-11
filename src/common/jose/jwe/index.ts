@@ -1,5 +1,3 @@
-export async function toJWE() {}
+import { compactJwe } from "./compact";
 
-export class JweModule {
-    constructor() {}
-}
+export { compactJwe };

@@ -1,48 +1,46 @@
-<div id="top"></div>
-<br />
-<div align="center">
-  <a href="https://github.com/InfraBlockchain/infra-did-comm-js">
-  </a>
+# InfraDID Agent Communication Protocol
 
-<h3 align="center">infra-did-comm-js</h3>
-</div>
+## DID Connection Protocol
 
+This protocol enables the establishment of an asynchronous, bidirectional secret communication channel between a Holder DID and a Verifier DID, while also facilitating mutual DID authentication.
+
+## VP Protocol
+
+WIP
+
+## Permission Grant Protocol
+
+WIP
+
+## Folder Structure
+
+This library is organized as follows:
+
+```
+src/
+├── types/
+│   └── message/                  # Message types for various protocols
+├── common/                       # Common logics used across protocols
+└── index.js
+```
 
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+To get started with the InfraDID Agent Communication Protocol, clone the repository and navigate to the project directory. Install the necessary dependencies by running:
 
-### Installation
+```
+bash
+npm install
+```
 
-1. Clone the repo
-   ```sh
-   git clone https://github.com/InfraBlockchain/infra-did-comm-js.git
-   ```
+## Documents
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+-   [spec](./docs/spec/README.md)
+    -   [message](./docs/spec/message/README.md)
+-   [common](./docs/common/README.md)
 
-
-<!-- CONTRIBUTING -->
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Contributions to the InfraDID Agent Communication Protocol are welcome. Please feel free to submit pull requests or open issues to discuss proposed changes or report bugs.
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
-<!-- CONTACT -->
-## Contact
-
-Project Link: [https://github.com/InfraBlockchain/infra-did-comm-js](https://github.com/InfraBlockchain/infra-did-comm-js)
-
-<p align="right">(<a href="#top">back to top</a>)</p>
+For more detailed information on contributing, please refer to the CONTRIBUTING.md file in the repository.

@@ -1,4 +1,4 @@
-import { JweModule } from "./jwe/index";
-import { JwsModule } from "./jws/index";
+import { compactJwe } from "./jwe/index";
+import { compactJws } from "./jws/index";
 
-export { JweModule,JwsModule };
+export { compactJwe, compactJws };
