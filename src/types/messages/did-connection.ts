@@ -1,6 +1,9 @@
 /**
  * Represents a request message for DID connection with detailed information.
  */
+
+import { inflateAndDecode } from "@src/utils/encode";
+
 export class DIDConnectRequestMessage {
     type: string;
     from: string;
@@ -102,7 +105,7 @@ export class DIDConnectRequestMessage {
      * @returns {DIDConnectRequestMessage} The new instance created from the JSON object.
      * @throws {Error} Throws an error if the JSON object is missing required keys.
      */
-    fromJSON(json: ConnectRequestMessage): DIDConnectRequestMessage {
+    static fromJSON(json: Record<string, any>): DIDConnectRequestMessage {
         // Extracting body for easier manipulation and type checking
         const body = json.body;
 
@@ -143,6 +146,15 @@ export class DIDConnectRequestMessage {
             context,
         );
     }
+
+    static async decode(encoded: string): Promise<DIDConnectRequestMessage> {
+        try {
+            const data = await inflateAndDecode(encoded);
+            return this.fromJSON(data);
+        } catch (e) {
+            throw e; // Rethrow the exception
+        }
+    }
 }
 
 /**
@@ -179,22 +191,6 @@ type Context = {
      */
     action: string;
 };
-
-/**
- * Defines the structure for the paramJSON interface, which includes
- * the message type, sender, creation time, expiration time, and body
- * that can be of NormalJSONBody, CompactJSONBody, or MinimalJSONBody type.
- */
-interface ConnectRequestMessage {
-    type: string;
-    from: string;
-    created_time: number;
-    expires_time: number;
-    body:
-        | RequestMessageBody
-        | CompactRequestMessageBody
-        | MinimalRequestMessageJSONBody;
-}
 
 /**
  * Represents the body structure of a Normal JSON message, including
@@ -250,11 +246,11 @@ interface MinimalRequestMessageJSONBody {
 
 export class DIDAuthInitMessage {
     id: string;
-    type: string;
+    type: string = "DIDAuthInitMessage";
     from: string;
     to: string[];
-    created_time: number;
-    expires_time: number;
+    createdTime: number;
+    expiresTime: number;
     body: {
         context: Context;
         socketId: string;
@@ -262,36 +258,60 @@ export class DIDAuthInitMessage {
     };
     constructor(
         id: string,
-        type: string,
         from: string,
         to: string[],
-        created_time: number,
-        expires_time: number,
+        createdTime: number,
+        expiresTime: number,
         context: Context,
         socketId: string,
         peerSocketId: string,
     ) {
         this.id = id;
-        this.type = type;
         this.from = from;
         this.to = to;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
+        this.createdTime = createdTime;
+        this.expiresTime = expiresTime;
         this.body = {
             context: context,
             socketId: socketId,
             peerSocketId: peerSocketId,
         };
     }
+
+    toJson(): Record<string, any> {
+        try {
+            const data: Record<string, any> = {
+                id: this.id,
+                type: this.type,
+                from: this.from,
+                to: this.to,
+                // Only add createdTime and expiresTime if they are not undefined
+                ...(this.createdTime !== undefined && {
+                    created_time: this.createdTime,
+                }),
+                ...(this.expiresTime !== undefined && {
+                    expires_time: this.expiresTime,
+                }),
+                // body: {
+                //     context: this.context.toJson(),
+                //     socketId: this.socketId,
+                //     peerSocketId: this.peerSocketId,
+                // }
+            };
+            return data;
+        } catch (e) {
+            throw e; // Rethrow the exception in JavaScript/TypeScript
+        }
+    }
 }
 
 export class DIDAuthMessage {
     id: string;
-    type: string;
+    type: string = "DIDAuthMessage";
     from: string;
     to: string[];
-    created_time: number;
-    expires_time: number;
+    createdTime: number;
+    expiresTime: number;
     body: {
         context: Context;
         socketId: string;
@@ -299,21 +319,19 @@ export class DIDAuthMessage {
     };
     constructor(
         id: string,
-        type: string,
         from: string,
         to: string[],
-        created_time: number,
-        expires_time: number,
+        createdTime: number,
+        expiresTime: number,
         context: Context,
         socketId: string,
         peerSocketId: string,
     ) {
         this.id = id;
-        this.type = type;
         this.from = from;
         this.to = to;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
+        this.createdTime = createdTime;
+        this.expiresTime = expiresTime;
         this.body = {
             context: context,
             socketId: socketId,
@@ -388,4 +406,10 @@ export class DIDConnectedMessage {
             status: status,
         };
     }
+}
+
+export enum CompressType {
+    RAW = "raw",
+    COMPACT = "compact",
+    MINIMAL = "minimal",
 }

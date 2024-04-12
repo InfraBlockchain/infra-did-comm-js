@@ -1,4 +1,5 @@
 import {
+    CompressType,
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
@@ -7,6 +8,7 @@ import {
 } from "./did-connection";
 
 export {
+    CompressType,
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
