@@ -1,11 +1,15 @@
 import {
-    CompactDIDConnectRequestMessage,
+    DIDAuthFailedMessage,
+    DIDAuthInitMessage,
+    DIDAuthMessage,
+    DIDConnectedMessage,
     DIDConnectRequestMessage,
-    MinimalCompactDIDConnectRequestMessage,
 } from "./did-connection";
 
 export {
-    CompactDIDConnectRequestMessage,
+    DIDAuthFailedMessage,
+    DIDAuthInitMessage,
+    DIDAuthMessage,
+    DIDConnectedMessage,
     DIDConnectRequestMessage,
-    MinimalCompactDIDConnectRequestMessage,
 };

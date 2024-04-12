@@ -1,14 +1,3 @@
-// interface Initiator {
-//     type: String;
-//     service_endpoint: String;
-//     socketId: String;
-// }
-
-// interface Context {
-//     did: String;
-//     name: String;
-// }
-
 /**
  * Represents a request message for DID connection with detailed information.
  */
@@ -257,4 +246,146 @@ interface MinimalRequestMessageJSONBody {
             a: string; // Action
         };
     };
+}
+
+export class DIDAuthInitMessage {
+    id: string;
+    type: string;
+    from: string;
+    to: string[];
+    created_time: number;
+    expires_time: number;
+    body: {
+        context: Context;
+        socketId: string;
+        peerSocketId: string;
+    };
+    constructor(
+        id: string,
+        type: string,
+        from: string,
+        to: string[],
+        created_time: number,
+        expires_time: number,
+        context: Context,
+        socketId: string,
+        peerSocketId: string,
+    ) {
+        this.id = id;
+        this.type = type;
+        this.from = from;
+        this.to = to;
+        this.created_time = created_time;
+        this.expires_time = expires_time;
+        this.body = {
+            context: context,
+            socketId: socketId,
+            peerSocketId: peerSocketId,
+        };
+    }
+}
+
+export class DIDAuthMessage {
+    id: string;
+    type: string;
+    from: string;
+    to: string[];
+    created_time: number;
+    expires_time: number;
+    body: {
+        context: Context;
+        socketId: string;
+        peerSocketId: string;
+    };
+    constructor(
+        id: string,
+        type: string,
+        from: string,
+        to: string[],
+        created_time: number,
+        expires_time: number,
+        context: Context,
+        socketId: string,
+        peerSocketId: string,
+    ) {
+        this.id = id;
+        this.type = type;
+        this.from = from;
+        this.to = to;
+        this.created_time = created_time;
+        this.expires_time = expires_time;
+        this.body = {
+            context: context,
+            socketId: socketId,
+            peerSocketId: peerSocketId,
+        };
+    }
+}
+
+export class DIDAuthFailedMessage {
+    id: string;
+    type: string;
+    from: string;
+    to: string[];
+    created_time: number;
+    expires_time: number;
+    body: {
+        context: Context;
+        reason: string;
+    };
+    constructor(
+        id: string,
+        type: string,
+        from: string,
+        to: string[],
+        created_time: number,
+        expires_time: number,
+        context: Context,
+        reason: string,
+    ) {
+        this.id = id;
+        this.type = type;
+        this.from = from;
+        this.to = to;
+        this.created_time = created_time;
+        this.expires_time = expires_time;
+        this.body = {
+            context: context,
+            reason: reason,
+        };
+    }
+}
+
+export class DIDConnectedMessage {
+    id: string;
+    type: string;
+    from: string;
+    to: string[];
+    created_time: number;
+    expires_time: number;
+    body: {
+        context: Context;
+        status: string;
+    };
+    constructor(
+        id: string,
+        type: string,
+        from: string,
+        to: string[],
+        created_time: number,
+        expires_time: number,
+        context: Context,
+        status: string,
+    ) {
+        this.id = id;
+        this.type = type;
+        this.from = from;
+        this.to = to;
+        this.created_time = created_time;
+        this.expires_time = expires_time;
+        this.body = {
+            context: context,
+            status: status,
+        };
+    }
 }
