@@ -113,40 +113,37 @@ export class DIDConnectRequestMessage {
      * @returns {DIDConnectRequestMessage} The new instance created from the JSON object.
      * @throws {Error} Throws an error if the JSON object is missing required keys.
      */
-    fromJSON(json: any): DIDConnectRequestMessage {
-        if (
-            !json.type ||
-            !json.from ||
-            !json.created_time ||
-            !json.expires_time
-        ) {
-            throw new Error("Invalid JSON: Missing required keys");
-        }
+    fromJSON(json: ConnectRequestMessage): DIDConnectRequestMessage {
+        // Extracting body for easier manipulation and type checking
+        const body = json.body;
 
         let initiator: Initiator;
+        let context: Context;
 
-        // Use type guards to differentiate between CompactJSON and MinimalJSON
-        if ("i" in json.body && "se" in json.body.i) {
-            // Compact format
-            const compact: CompactJSON = json;
+        // Checking for Compact or Minimal JSON by looking for specific keys,
+        // Otherwise, it's treated as normal request message JSON.
+        if ("i" in body && "c" in body) {
+            // This handles both CompactJSONBody and MinimalJSONBody
+            const compactOrMinimalBody = body as
+                | CompactRequestMessageBody
+                | MinimalRequestMessageJSONBody;
             initiator = {
-                service_endpoint: compact.body.i.se,
-                socketId: compact.body.i.sid,
+                socketId: compactOrMinimalBody.body.i.sid,
+                // 'service_endpoint' might not be provided in MinimalJSON
+                service_endpoint:
+                    "se" in compactOrMinimalBody.body.i
+                        ? compactOrMinimalBody.body.i.se
+                        : undefined,
             };
-        } else if ("i" in json.body) {
-            // Minimal format
-            const minimal: MinimalJSON = json;
-            initiator = {
-                socketId: minimal.body.i.sid,
+            context = {
+                domain: compactOrMinimalBody.body.c.d,
+                action: compactOrMinimalBody.body.c.a,
             };
         } else {
-            throw new Error("Invalid JSON: Unrecognized format");
+            const requestMessageBody = body as RequestMessageBody;
+            initiator = requestMessageBody.body.initiator;
+            context = requestMessageBody.body.context;
         }
-
-        const context = {
-            domain: json.body.c.d,
-            action: json.body.c.a,
-        };
 
         return new DIDConnectRequestMessage(
             json.type,
@@ -159,48 +156,105 @@ export class DIDConnectRequestMessage {
     }
 }
 
-// Define types for initiator and context to ensure type safety
+/**
+ * Represents the entity initiating the connection.
+ * It includes optional type and service endpoint fields,
+ * and a mandatory socket ID.
+ */
 type Initiator = {
+    /**
+     * The type of the initiator, if available.
+     */
     type?: string;
+    /**
+     * The service endpoint of the initiator, if provided.
+     */
     service_endpoint?: string;
+    /**
+     * The unique socket ID of the initiator.
+     */
     socketId: string;
 };
 
+/**
+ * Describes the context in which the connection is being initiated,
+ * including the domain and action being performed.
+ */
 type Context = {
+    /**
+     * The domain within which the action is taking place.
+     */
     domain: string;
+    /**
+     * The specific action being initiated.
+     */
     action: string;
 };
 
-// Define interfaces for CompactJSON and MinimalJSON formats
-interface CompactJSON {
+/**
+ * Defines the structure for the paramJSON interface, which includes
+ * the message type, sender, creation time, expiration time, and body
+ * that can be of NormalJSONBody, CompactJSONBody, or MinimalJSONBody type.
+ */
+interface ConnectRequestMessage {
     type: string;
     from: string;
     created_time: number;
     expires_time: number;
+    body:
+        | RequestMessageBody
+        | CompactRequestMessageBody
+        | MinimalRequestMessageJSONBody;
+}
+
+/**
+ * Represents the body structure of a Normal JSON message, including
+ * details about the initiator and the context of the message.
+ */
+interface RequestMessageBody {
     body: {
-        i: {
-            se: string;
-            sid: string;
+        initiator: {
+            type: string;
+            serviceEndpoint: string;
+            socketId: string;
         };
-        c: {
-            d: string;
-            a: string;
+        context: {
+            domain: string;
+            action: string;
         };
     };
 }
 
-interface MinimalJSON {
-    type: string;
-    from: string;
-    created_time: number;
-    expires_time: number;
+/**
+ * Describes the structure of a Compact JSON message body, which is a
+ * more condensed version of the message including initiator and context
+ * information with abbreviated keys.
+ */
+interface CompactRequestMessageBody {
     body: {
         i: {
-            sid: string;
+            se: string; // Service Endpoint
+            sid: string; // Socket ID
         };
         c: {
-            d: string;
-            a: string;
+            d: string; // Domain
+            a: string; // Action
+        };
+    };
+}
+
+/**
+ * Outlines the structure for a Minimal JSON message body, similar to
+ * CompactJSONBody but potentially lacking the service endpoint.
+ */
+interface MinimalRequestMessageJSONBody {
+    body: {
+        i: {
+            sid: string; // Socket ID only, service endpoint may be omitted
+        };
+        c: {
+            d: string; // Domain
+            a: string; // Action
         };
     };
 }
