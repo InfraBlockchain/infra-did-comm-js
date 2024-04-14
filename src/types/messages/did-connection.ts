@@ -44,7 +44,7 @@ export class DIDConnectRequestMessage {
      * Converts the instance to a standard JSON object.
      * @returns {object} The JSON representation of the instance.
      */
-    toJSON(): object {
+    toJSON(): Record<string, any> {
         return {
             type: this.type,
             from: this.from,
@@ -58,7 +58,7 @@ export class DIDConnectRequestMessage {
      * Converts the instance to a compact JSON object, with abbreviated keys.
      * @returns {object} The compact JSON representation of the instance.
      */
-    toCompactJSON(): object {
+    toCompactJSON(): Record<string, any> {
         return {
             type: this.type,
             from: this.from,
@@ -81,7 +81,7 @@ export class DIDConnectRequestMessage {
      * Converts the instance to a minimal JSON object, containing only the most essential information.
      * @returns {object} The minimal JSON representation of the instance.
      */
-    toMinimalJSON(): object {
+    toMinimalJSON(): Record<string, any> {
         return {
             type: this.type,
             from: this.from,
@@ -127,14 +127,17 @@ export class DIDConnectRequestMessage {
                         ? compactOrMinimalBody.body.i.se
                         : undefined,
             };
-            context = {
-                domain: compactOrMinimalBody.body.c.d,
-                action: compactOrMinimalBody.body.c.a,
-            };
+            context = new Context(
+                compactOrMinimalBody.body.c.d,
+                compactOrMinimalBody.body.c.a,
+            );
         } else {
             const requestMessageBody = body as RequestMessageBody;
             initiator = requestMessageBody.body.initiator;
-            context = requestMessageBody.body.context;
+            context = new Context(
+                requestMessageBody.body.context.domain,
+                requestMessageBody.body.context.action,
+            );
         }
 
         return new DIDConnectRequestMessage(
@@ -181,16 +184,47 @@ type Initiator = {
  * Describes the context in which the connection is being initiated,
  * including the domain and action being performed.
  */
-type Context = {
-    /**
-     * The domain within which the action is taking place.
-     */
+class Context {
     domain: string;
-    /**
-     * The specific action being initiated.
-     */
     action: string;
-};
+
+    constructor(domain: string, action: string) {
+        this.domain = domain;
+        this.action = action;
+    }
+
+    static fromJson(json: Record<string, any>): Context {
+        const jsonData = json as { domain: string; action: string };
+        return new Context(jsonData.domain, jsonData.action);
+    }
+
+    static fromCompactJson(json: Record<string, any>): Context {
+        const jsonCompact = json as { d: string; a: string };
+        return new Context(jsonCompact.d, jsonCompact.a);
+    }
+
+    static fromMinimalCompactJson(json: Record<string, any>): Context {
+        return this.fromCompactJson(json);
+    }
+
+    toJson(): Record<string, any> {
+        return {
+            domain: this.domain,
+            action: this.action,
+        };
+    }
+
+    toCompactJson(): Record<string, any> {
+        return {
+            d: this.domain,
+            a: this.action,
+        };
+    }
+
+    toMinimalCompactJson(): Record<string, any> {
+        return this.toCompactJson();
+    }
+}
 
 /**
  * Represents the body structure of a Normal JSON message, including
@@ -292,11 +326,11 @@ export class DIDAuthInitMessage {
                 ...(this.expiresTime !== undefined && {
                     expires_time: this.expiresTime,
                 }),
-                // body: {
-                //     context: this.context.toJson(),
-                //     socketId: this.socketId,
-                //     peerSocketId: this.peerSocketId,
-                // }
+                body: {
+                    context: this.body.context.toJson(),
+                    socketId: this.body.socketId,
+                    peerSocketId: this.body.peerSocketId,
+                },
             };
             return data;
         } catch (e) {
@@ -338,72 +372,114 @@ export class DIDAuthMessage {
             peerSocketId: peerSocketId,
         };
     }
+
+    toJson(): Record<string, any> {
+        return {
+            id: this.id,
+            type: this.type,
+            from: this.from,
+            to: this.to,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
+            body: {
+                context: this.body.context.toJson(), // assuming Context has a toJson method
+                socketId: this.body.socketId,
+                peerSocketId: this.body.peerSocketId,
+            },
+        };
+    }
 }
 
 export class DIDAuthFailedMessage {
     id: string;
-    type: string;
+    type: string = "DIDAuthFailed";
     from: string;
     to: string[];
-    created_time: number;
-    expires_time: number;
+    createdTime: number;
+    expiresTime: number;
     body: {
         context: Context;
         reason: string;
     };
     constructor(
         id: string,
-        type: string,
         from: string,
         to: string[],
-        created_time: number,
-        expires_time: number,
+        createdTime: number,
+        expiresTime: number,
         context: Context,
         reason: string,
     ) {
         this.id = id;
-        this.type = type;
         this.from = from;
         this.to = to;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
+        this.createdTime = createdTime;
+        this.expiresTime = expiresTime;
         this.body = {
             context: context,
             reason: reason,
+        };
+    }
+
+    toJson(): Record<string, any> {
+        return {
+            id: this.id,
+            type: this.type,
+            from: this.from,
+            to: this.to,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
+            body: {
+                context: this.body.context.toJson(), // assuming Context has a toJson method
+                reason: this.body.reason,
+            },
         };
     }
 }
 
 export class DIDConnectedMessage {
     id: string;
-    type: string;
+    type: string = "DIDConnected";
     from: string;
     to: string[];
-    created_time: number;
-    expires_time: number;
+    createdTime: number;
+    expiresTime: number;
     body: {
         context: Context;
         status: string;
     };
     constructor(
         id: string,
-        type: string,
         from: string,
         to: string[],
-        created_time: number,
-        expires_time: number,
+        createdTime: number,
+        expiresTime: number,
         context: Context,
         status: string,
     ) {
         this.id = id;
-        this.type = type;
         this.from = from;
         this.to = to;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
+        this.createdTime = createdTime;
+        this.expiresTime = expiresTime;
         this.body = {
             context: context,
             status: status,
+        };
+    }
+
+    toJson(): Record<string, any> {
+        return {
+            id: this.id,
+            type: this.type,
+            from: this.from,
+            to: this.to,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
+            body: {
+                context: this.body.context.toJson(), // assuming Context has a toJson method
+                status: this.body.status,
+            },
         };
     }
 }

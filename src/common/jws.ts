@@ -1,6 +1,6 @@
 import base64url from "base64url";
 import * as jose from "jose";
-import { importJWK, jwtVerify,SignJWT } from "jose";
+import { importJWK, jwtVerify, SignJWT } from "jose";
 
 // Sign JWS
 export async function signJWS(

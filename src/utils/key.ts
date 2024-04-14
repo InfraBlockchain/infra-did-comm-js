@@ -1,5 +1,10 @@
 import { decode, encode } from "@stablelib/base64";
-import { generateKeyPair, sharedKey } from "@stablelib/x25519";
+import {
+    generateKeyPair,
+    generateKeyPairFromSeed,
+    sharedKey,
+} from "@stablelib/x25519";
+import { CryptoHelper } from "infra-did-js";
 
 // Generate X25519 Ephemeral Key Pair
 export async function generateX25519EphemeralKeyPair(): Promise<
@@ -21,12 +26,12 @@ export async function makeSharedKey(
 export async function x25519JwkFromX25519PrivateKey(
     privateKey: Uint8Array,
 ): Promise<Record<string, any>> {
-    const { publicKey } = generateKeyPair(privateKey);
+    const { publicKey, secretKey } = generateKeyPairFromSeed(privateKey);
     return {
         kty: "OKP",
         crv: "X25519",
         x: encode(publicKey),
-        d: encode(privateKey),
+        d: encode(secretKey),
     };
 }
 
@@ -45,11 +50,11 @@ export function x25519JwkFromX25519PublicKey(
 export function x25519JwkFromEd25519PublicKey(
     publicKey: Uint8Array,
 ): Record<string, any> {
-    const x25519PublicKey = convertPublicKey(publicKey);
+    const x25519PublicKey = CryptoHelper.edToX25519Pk(publicKey, "u8a");
     return {
         kty: "OKP",
         crv: "X25519",
-        x: encode(x25519PublicKey),
+        x: encode(x25519PublicKey as Uint8Array),
     };
 }
 

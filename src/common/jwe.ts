@@ -1,32 +1,42 @@
 import * as jose from "jose";
-import { compactDecrypt, compactEncrypt, decodeProtectedHeader } from "jose";
+import {
+    compactDecrypt,
+    CompactEncrypt,
+    decodeProtectedHeader,
+    importJWK,
+} from "jose";
 
 // Encrypt JWE
 export async function encryptJWE(
     data: string,
-    key: JWK.Key,
-    epk?: object,
+    key: Record<string, any>,
+    epk?: Record<string, any>,
 ): Promise<string> {
-    const jwk = JWK.asKey(key);
-    const encOptions = {
-        contentEncryptionAlgorithm: "A256GCM",
-        ...(epk && { epk }),
-    };
-    const { plaintext } = await compactEncrypt(
-        Buffer.from(data),
-        jwk,
-        encOptions,
-    );
-    return plaintext.toString();
+    const keyJwk = await importJWK(key);
+
+    if (epk != null) {
+        const epkJwk = await importJWK(epk);
+        const compactJWE = await new CompactEncrypt(Buffer.from(data))
+            .setProtectedHeader({ alg: "ECDH-ES", enc: "A256GCM" })
+            .setKeyManagementParameters({ epk: epkJwk as jose.KeyLike })
+            .encrypt(keyJwk);
+        return compactJWE;
+    } else {
+        const compactJWE = await new CompactEncrypt(Buffer.from(data))
+            .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+            .encrypt(keyJwk);
+        return compactJWE;
+    }
 }
 
 // Decrypt JWE
 export async function decryptJWE(
     jweCompact: string,
-    key: JWK.Key,
+    key: Record<string, any>,
 ): Promise<string> {
-    const jwk = JWK.asKey(key);
-    const { plaintext } = await compactDecrypt(jweCompact, jwk);
+    const keyJwk = await importJWK(key);
+
+    const { plaintext } = await compactDecrypt(jweCompact, keyJwk);
     return Buffer.from(plaintext).toString();
 }
 
