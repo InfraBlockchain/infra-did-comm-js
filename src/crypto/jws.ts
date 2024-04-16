@@ -1,4 +1,5 @@
 import base64url from "base64url";
+import { KeyObject } from "crypto";
 import * as jose from "jose";
 import { importJWK, jwtVerify, SignJWT } from "jose";
 
@@ -8,7 +9,13 @@ export async function signJWS(
     privateKey: string,
 ): Promise<string> {
     const jwk = await importJWK(
-        { kty: "OKP", crv: "Ed25519", d: privateKey, alg: "EdDSA" },
+        {
+            kty: "OKP",
+            crv: "Ed25519",
+            d: privateKey,
+            x: privateKey,
+            alg: "EdDSA",
+        },
         "EdDSA",
     );
     const token = await new SignJWT({ data })
@@ -19,15 +26,11 @@ export async function signJWS(
 
 // Verify JWS
 export async function verifyJWS(
-    token: string,
-    publicKey: string,
+    jws: string,
+    publicKey: KeyObject,
 ): Promise<object | undefined> {
     try {
-        const jwk = await importJWK(
-            { kty: "OKP", crv: "Ed25519", x: publicKey, alg: "EdDSA" },
-            "EdDSA",
-        );
-        const { payload } = await jwtVerify(token, jwk, {
+        const { payload } = await jwtVerify(jws, publicKey, {
             algorithms: ["EdDSA"],
         });
         return payload;

@@ -1,14 +1,14 @@
 import {
-    CompressType,
+    CompressionLevel,
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
     DIDConnectedMessage,
     DIDConnectRequestMessage,
-} from "./did-connection";
+} from "./did-connect-request";
 
 export {
-    CompressType,
+    CompressionLevel,
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,

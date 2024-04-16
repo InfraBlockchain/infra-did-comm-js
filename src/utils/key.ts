@@ -6,6 +6,8 @@ import {
 } from "@stablelib/x25519";
 import { CryptoHelper } from "infra-did-js";
 
+import { privateKeyFromUri, publicKeyFromUri } from "./key_convert";
+
 // Generate X25519 Ephemeral Key Pair
 export async function generateX25519EphemeralKeyPair(): Promise<
     [Uint8Array, Uint8Array]
@@ -50,27 +52,39 @@ export function x25519JwkFromX25519PublicKey(
 export function x25519JwkFromEd25519PublicKey(
     publicKey: Uint8Array,
 ): Record<string, any> {
-    const x25519PublicKey = CryptoHelper.edToX25519Pk(publicKey, "u8a");
-    return {
-        kty: "OKP",
-        crv: "X25519",
-        x: encode(x25519PublicKey as Uint8Array),
-    };
-}
-
-// X25519 JWK from Ed25519 Private Key
-export async function x25519JwkFromEd25519PrivateKey(
-    privateKey: Uint8Array,
-): Promise<Record<string, any>> {
-    // Assuming publicKeyFromSeed is adapted to return Uint8Array
-    // const ed25519PublicKey = publicKeyFromSeed(encode(privateKey)); // This may need to be adapted
-    const x25519PublicKey = convertPublicKey(ed25519PublicKey);
-    const x25519PrivateKey = convertSecretKey(privateKey);
+    const x25519PublicKey = CryptoHelper.edToX25519Pk(
+        publicKey,
+        "u8a",
+    ) as Uint8Array;
     return {
         kty: "OKP",
         crv: "X25519",
         x: encode(x25519PublicKey),
-        d: encode(x25519PrivateKey),
+    };
+}
+
+// X25519 JWK from Ed25519 Private Key
+export function x25519JwkFromMnemonic(mnemonic: string): Record<string, any> {
+    // ED25519 sk -> ED25519 pk
+    // ED25519 sk, pk -> X25519
+    const publicKeyED25519 = publicKeyFromUri(mnemonic);
+    const privateKeyED25519 = privateKeyFromUri(mnemonic);
+
+    const priavteKeyX25519 = CryptoHelper.edToX25519Sk(
+        publicKeyED25519,
+        privateKeyED25519,
+        "u8a",
+    ) as Uint8Array;
+    const publicKeyX25519 = CryptoHelper.edToX25519Pk(
+        publicKeyED25519,
+        "u8a",
+    ) as Uint8Array;
+
+    return {
+        kty: "OKP",
+        crv: "X25519",
+        x: encode(publicKeyX25519),
+        d: encode(priavteKeyX25519),
     };
 }
 

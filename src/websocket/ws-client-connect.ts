@@ -1,7 +1,7 @@
 import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
-} from "@src/types/messages/did-connection";
+} from "@src/types/messages/did-connect-request";
 import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -24,13 +24,15 @@ class InfraDIDCommSocketClient {
     isDIDConnected: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
-    // didAuthInitCallback: (peerDID: string) => boolean = peerDID => true;
-    // didAuthCallback: (peerDID: string) => boolean = peerDID => true;
-    // didConnectedCallback: (peerDID: string) => void = peerDID => {};
-    // didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    didAuthInitCallback: (peerDID: string) => boolean = peerDID => true;
+    didAuthCallback: (peerDID: string) => boolean = peerDID => true;
+    didConnectedCallback: (peerDID: string) => void = peerDID => {};
+    didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
+    /* eslint-enable @typescript-eslint/no-unused-vars */
 
     private _socketIdPromiseResolver: (value: string | null) => void;
-    socketIdPromise: Promise<string | null>;
+    socketId: Promise<string | null>;
 
     constructor(url: string, did: string, mnemonic: string, role: string) {
         this.url = url;
@@ -49,7 +51,7 @@ class InfraDIDCommSocketClient {
 
         this.socket.on("connect", () => {
             this._socketIdPromiseResolver(this.socket.id);
-            console.log("Socket connected");
+            console.log("Socket connected2", this.socket.id);
         });
 
         this.socket.on("disconnect", () => {
@@ -61,26 +63,26 @@ class InfraDIDCommSocketClient {
     }
 
     private resetSocketIdPromise(): void {
-        this.socketIdPromise = new Promise(resolve => {
+        this.socketId = new Promise(resolve => {
             this._socketIdPromiseResolver = resolve;
         });
     }
 
-    // setDIDAuthInitCallback(callback: (peerDID: string) => boolean): void {
-    //     this.didAuthInitCallback = callback;
-    // }
+    setDIDAuthInitCallback(callback: (peerDID: string) => boolean): void {
+        this.didAuthInitCallback = callback;
+    }
 
-    // setDIDAuthCallback(callback: (peerDID: string) => boolean): void {
-    //     this.didAuthCallback = callback;
-    // }
+    setDIDAuthCallback(callback: (peerDID: string) => boolean): void {
+        this.didAuthCallback = callback;
+    }
 
-    // setDIDConnectedCallback(callback: (peerDID: string) => void): void {
-    //     this.didConnectedCallback = callback;
-    // }
+    setDIDConnectedCallback(callback: (peerDID: string) => void): void {
+        this.didConnectedCallback = callback;
+    }
 
-    // setDIDAuthFailedCallback(callback: (peerDID: string) => void): void {
-    //     this.didAuthFailedCallback = callback;
-    // }
+    setDIDAuthFailedCallback(callback: (peerDID: string) => void): void {
+        this.didAuthFailedCallback = callback;
+    }
 
     connect(): void {
         this.socket.connect();
@@ -100,16 +102,15 @@ class InfraDIDCommSocketClient {
                 this.mnemonic,
                 this.did,
                 this,
-                // this.didAuthInitCallback,
-                // this.didAuthCallback,
-                // this.didConnectedCallback,
-                // this.didAuthFailedCallback,
+                this.didAuthInitCallback,
+                this.didAuthCallback,
+                this.didConnectedCallback,
+                this.didAuthFailedCallback,
             );
         });
     }
 
     async sendDIDAuthInitMessage(encoded: string): Promise<void> {
-        // 예시에서는 DIDConnectRequestMessage.decode와 같은 함수를 decode로 대체합니다.
         const didConnectRequestMessage =
             await DIDConnectRequestMessage.decode(encoded);
 
@@ -121,7 +122,7 @@ class InfraDIDCommSocketClient {
 
         const didAuthInitMessage = new DIDAuthInitMessage(
             id,
-            this.did, // 클래스의 DID. 이 예제에서는 이전에 정의되어야 합니다.
+            this.did,
             [receiverDID],
             currentTime,
             currentTime + 30000,

@@ -1,5 +1,5 @@
-import { decryptJWE, encryptJWE, extractJWEHeader } from "@src/common/jwe";
-import { decodeJWS, signJWS, verifyJWS } from "@src/common/jws";
+import { decryptJWE, encryptJWE, extractJWEHeader } from "@src/crypto/jwe";
+import { compactJws, decodeJWS, verifyJWS } from "@src/crypto/jws";
 import {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
@@ -12,15 +12,17 @@ import {
     makeSharedKey,
     privateKeyfromX25519Jwk,
     publicKeyfromX25519Jwk,
-    x25519JwkFromEd25519PrivateKey,
     x25519JwkFromEd25519PublicKey,
+    x25519JwkFromMnemonic,
     x25519JwkFromX25519PublicKey,
 } from "@src/utils/key";
 import {
-    extendedPrivateKeyFromUri,
     privateKeyFromUri,
     publicKeyFromAddress,
+    publicKeyFromUri,
 } from "@src/utils/key_convert";
+import { CryptoHelper } from "infra-did-js";
+import { exportJWK } from "jose";
 import { Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -37,30 +39,31 @@ export async function messageHandler(
     didAuthFailedCallback?: (peerDID: string) => void,
 ) {
     try {
+        console.log("jwe", jwe);
         const header = extractJWEHeader(jwe); // This function needs to be implemented or imported.
+        console.log("header", header);
         const alg = header["alg"];
         if (alg === "ECDH-ES") {
-            // Handle DIDAuthInit Message
             const epk = header["epk"];
-            const privateKey = await privateKeyFromUri(mnemonic);
-            const x25519JwkPrivateKey =
-                await x25519JwkFromEd25519PrivateKey(privateKey);
+            const x25519JwkPrivateKey = x25519JwkFromMnemonic(mnemonic);
             const sharedKey = await makeSharedKey(
                 privateKeyfromX25519Jwk(x25519JwkPrivateKey),
                 publicKeyfromX25519Jwk(epk),
             );
+
             const jwsFromJwe = await decryptJWE(
                 jwe,
-                jwkFromSharedKey(sharedKey),
+                await exportJWK(sharedKey),
             );
             const payload = decodeJWS(jwsFromJwe); // This function needs to be implemented or imported.
             const fromDID = payload["from"];
             const fromAddress = fromDID.split(":").pop();
             const fromPublicKey = publicKeyFromAddress(fromAddress);
-            const jwsPayload = verifyJWS(
-                jwsFromJwe,
-                Buffer.from(fromPublicKey).toString("hex"),
-            );
+
+            const JWK = CryptoHelper.key2JWK("Ed25519", fromPublicKey);
+            const objectJWK = CryptoHelper.jwk2KeyObject(JWK, "public");
+
+            const jwsPayload = await verifyJWS(jwsFromJwe, objectJWK);
             client.peerInfo = {
                 did: jwsPayload["from"],
                 socketId: jwsPayload["body"]["socketId"],
@@ -70,9 +73,7 @@ export async function messageHandler(
             sendDIDAuthMessage(mnemonic, jwsPayload, client.socket);
         } else if (alg === "dir") {
             // Handle DIDAuth && DIDConnected Message
-            const privateKey = await privateKeyFromUri(mnemonic);
-            const x25519JwkPrivateKey =
-                await x25519JwkFromEd25519PrivateKey(privateKey);
+            const x25519JwkPrivateKey = x25519JwkFromMnemonic(mnemonic);
             if ("did" in client.peerInfo) {
                 const fromDID = client.peerInfo["did"];
                 const fromAddress = fromDID.split(":").pop();
@@ -84,14 +85,18 @@ export async function messageHandler(
                     privateKeyfromX25519Jwk(x25519JwkPrivateKey),
                     publicKeyfromX25519Jwk(x25519JwkPublicKey),
                 );
+
+                console.log("dir alg jwe", jwe);
                 const jwsFromJwe = await decryptJWE(
                     jwe,
-                    jwkFromSharedKey(sharedKey),
+                    await exportJWK(sharedKey),
                 );
-                const jwsPayload = verifyJWS(
-                    jwsFromJwe,
-                    Buffer.from(fromPublicKey).toString("hex"),
-                );
+
+                const JWK = CryptoHelper.key2JWK("Ed25519", fromPublicKey);
+                const objectJWK = CryptoHelper.jwk2KeyObject(JWK, "public");
+
+                const jwsPayload = await verifyJWS(jwsFromJwe, objectJWK);
+                console.log("MSG HANDLER jwsPayload", jwsPayload);
                 if (jwsPayload["type"] === "DIDAuth") {
                     // If Success, Send DID Connected Message
                     sendDIDConnectedMessageFromDIDAuthMessage(
@@ -121,7 +126,6 @@ export async function messageHandler(
         Object.keys(client.peerInfo).forEach(
             key => delete client.peerInfo[key],
         );
-
         sendDIDAuthFailedMessage(mnemonic, did, client);
         client.socket.disconnect();
     }
@@ -135,19 +139,27 @@ export async function sendDIDAuthInitMessageToReceiver(
 ): Promise<string> {
     const jsonMessage = message;
     const stringMessage = JSON.stringify(jsonMessage);
+    const payload = new TextEncoder().encode(stringMessage);
 
     // why use both public key and private key?
-    const extendedPrivateKey = await extendedPrivateKeyFromUri(mnemonic);
-    const receiverAddress = receiverDID.split(":").pop();
-    const receiverPublicKey = publicKeyFromAddress(receiverAddress);
+    const publicKey = publicKeyFromUri(mnemonic);
+    const privateKey = privateKeyFromUri(mnemonic);
+    const JWK = CryptoHelper.key2JWK("Ed25519", publicKey, privateKey);
+    const receiverPublicKey = publicKeyFromAddress(
+        receiverDID.split(":").pop(),
+    );
     client.peerInfo = {
         did: message.from,
         socketId: message.body.peerSocketId,
     };
 
-    const jws = await signJWS(
-        stringMessage,
-        Buffer.from(extendedPrivateKey).toString("hex"),
+    const jws = await compactJws(
+        payload,
+        CryptoHelper.jwk2KeyObject(JWK, "private"),
+        {
+            typ: "JWM",
+            alg: "EdDSA",
+        },
     );
 
     const ephemeralKeyPair = await generateX25519EphemeralKeyPair();
@@ -157,13 +169,15 @@ export async function sendDIDAuthInitMessageToReceiver(
     const x25519JwkPublicKey = x25519JwkFromEd25519PublicKey(receiverPublicKey);
 
     const sharedKey = await makeSharedKey(
-        privateKeyfromX25519Jwk(ephemeralPrivateKey),
+        ephemeralPrivateKey,
         publicKeyfromX25519Jwk(x25519JwkPublicKey),
     );
 
-    const jwe = await encryptJWE(jws, jwkFromSharedKey(sharedKey), {
-        epk: x25519JwkFromX25519PublicKey(ephemeralPublicKey),
-    });
+    const jwe = await encryptJWE(
+        jws,
+        await exportJWK(sharedKey),
+        x25519JwkFromX25519PublicKey(ephemeralPublicKey),
+    );
 
     return jwe;
 }
@@ -173,6 +187,7 @@ export async function sendDIDAuthMessage(
     didAuthInitMessagePayload: any, // Assuming an appropriate interface/type for the payload
     socket: Socket,
 ): Promise<void> {
+    console.log("here didAuthInitMessagePayload", didAuthInitMessagePayload);
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
     const receiverDID = didAuthInitMessagePayload["from"];
@@ -189,26 +204,7 @@ export async function sendDIDAuthMessage(
         didAuthInitMessagePayload["body"]["peerSocketId"],
         didAuthInitMessagePayload["body"]["socketId"],
     );
-
-    // ED25519 PK
-    const senderPrivateKey = await privateKeyFromUri(mnemonic);
-    // Reseiver ED25519 PK
-    const receiverPublicKey = publicKeyFromAddress(
-        receiverDID.split(":").pop(),
-    );
-    const x25519JwkPublicKey = x25519JwkFromEd25519PublicKey(receiverPublicKey);
-
-    // Additional cryptographic operations similar to the previous example
-    // Sign and encrypt the message, then emit via socket
-    const jws = await signJWS(
-        JSON.stringify(didAuthMessage.toJson()),
-        Buffer.from(senderPrivateKey).toString("hex"),
-    );
-    const sharedKey = await makeSharedKey(
-        privateKeyfromX25519Jwk(senderPrivateKey),
-        publicKeyfromX25519Jwk(x25519JwkPublicKey),
-    );
-    const jwe = encryptJWE(jws, jwkFromSharedKey(sharedKey));
+    const jwe = await createEncryptedJWE(didAuthMessage, mnemonic, receiverDID);
 
     socket.emit("message", { to: didAuthMessage.body.peerSocketId, m: jwe });
     console.log(`DIDAuthMessage sent to ${didAuthMessage.body.peerSocketId}`);
@@ -222,31 +218,21 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
     const receiverDID = didAuthMessagePayload["from"];
-    const receiverAddress = receiverDID.split(":").pop();
 
-    // Assuming DIDConnectedMessage has a constructor or factory method from an object
     const didConnectedMessage = new DIDConnectedMessage(
         id,
         didAuthMessagePayload["to"][0],
         [receiverDID],
         currentTime,
         currentTime + 30000,
-        // Assume Context.fromJson() is replaced by direct object instantiation or another method
         didAuthMessagePayload["body"]["context"],
         "Successfully Connected",
     );
-
-    // Similar cryptographic operations as in previous examples
-    // Sign and encrypt the message, then emit via socket
-    const privateKey = await privateKeyFromUri(mnemonic);
-    // ED25519 PK
-    const receiverPublicKey = publicKeyFromAddress(receiverAddress);
-    const jws = await signJWS(
-        JSON.stringify(didConnectedMessage.toJson()),
-        Buffer.from(privateKey).toString("hex"),
+    const jwe = await createEncryptedJWE(
+        didConnectedMessage,
+        mnemonic,
+        receiverDID,
     );
-    const sharedKey = await makeSharedKey(privateKey, receiverPublicKey); // Placeholder
-    const jwe = encryptJWE(jws, jwkFromSharedKey(sharedKey));
 
     socket.emit("message", {
         to: didAuthMessagePayload["body"]["socketId"],
@@ -265,7 +251,6 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
     const receiverDID = didConnectedMessagePayload["from"];
-    const receiverAddress = receiverDID.split(":").pop();
 
     const newDidConnectedMessage = new DIDConnectedMessage(
         id,
@@ -277,17 +262,11 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
         "Successfully Connected",
     );
 
-    // Similar cryptographic operations as in previous examples
-    // Sign and encrypt the message, then emit via client's socket
-    const privateKey = await privateKeyFromUri(mnemonic);
-    // ED25519 PK
-    const receiverPublicKey = publicKeyFromAddress(receiverAddress);
-    const jws = await signJWS(
-        JSON.stringify(newDidConnectedMessage.toJson()),
-        Buffer.from(privateKey).toString("hex"),
+    const jwe = await createEncryptedJWE(
+        newDidConnectedMessage,
+        mnemonic,
+        receiverDID,
     );
-    const sharedKey = await makeSharedKey(privateKey, receiverPublicKey); // Placeholder
-    const jwe = encryptJWE(jws, jwkFromSharedKey(sharedKey));
 
     client.socket.emit("message", { to: client.peerInfo["socketId"], m: jwe });
     console.log(`DIDConnectedMessage sent to ${client.peerInfo["socketId"]}`);
@@ -297,14 +276,13 @@ export async function sendDIDAuthFailedMessage(
     mnemonic: string,
     did: string,
     client: InfraDIDCommSocketClient,
-    context?: any, // Assuming an appropriate interface/type for the context
+    context?: any, // Assumix`ng an appropriate interface/type for the context
 ): Promise<void> {
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
     if (client.peerInfo.hasOwnProperty("did")) {
         const receiverDID = client.peerInfo["did"];
         const receiverSocketId = client.peerInfo["socketId"];
-        const receiverAddress = receiverDID.split(":").pop();
 
         const didAuthFailedMessage = new DIDAuthFailedMessage(
             id,
@@ -316,19 +294,55 @@ export async function sendDIDAuthFailedMessage(
             "DID Auth Failed",
         );
 
-        // Similar cryptographic operations as in previous examples
-        // Sign and encrypt the message, then emit via client's socket
-        const privateKey = await privateKeyFromUri(mnemonic);
-        // ED25519 PK
-        const receiverPublicKey = publicKeyFromAddress(receiverAddress);
-        const jws = await signJWS(
-            JSON.stringify(didAuthFailedMessage.toJson()),
-            Buffer.from(privateKey).toString("hex"),
+        const jwe = await createEncryptedJWE(
+            didAuthFailedMessage,
+            mnemonic,
+            receiverDID,
         );
-        const sharedKey = await makeSharedKey(privateKey, receiverPublicKey); // Placeholder
-        const jwe = encryptJWE(jws, jwkFromSharedKey(sharedKey));
 
         client.socket.emit("message", { to: receiverSocketId, m: jwe });
         console.log(`DIDAuthFailedMessage sent to ${receiverSocketId}`);
     }
+}
+
+async function createEncryptedJWE(
+    message: Record<string, any>,
+    mnemonic: string,
+    receiverDID: string,
+): Promise<string> {
+    const stringMessage = JSON.stringify(message);
+    const payload = new TextEncoder().encode(stringMessage);
+
+    const senderPrivateKey = privateKeyFromUri(mnemonic);
+    const senderPublicKey = publicKeyFromUri(mnemonic);
+
+    const receiverPublicKey = publicKeyFromAddress(
+        receiverDID.split(":").pop(),
+    );
+    const x25519JwkPublicKey = x25519JwkFromEd25519PublicKey(receiverPublicKey);
+
+    const JWK = CryptoHelper.key2JWK(
+        "Ed25519",
+        senderPublicKey,
+        senderPrivateKey,
+    );
+
+    const jws = await compactJws(
+        payload,
+        CryptoHelper.jwk2KeyObject(JWK, "private"),
+        {
+            typ: "JWM",
+            alg: "EdDSA",
+        },
+    );
+
+    const senderPrivateKeyX25519JWK = x25519JwkFromMnemonic(mnemonic);
+
+    const sharedKey = await makeSharedKey(
+        privateKeyfromX25519Jwk(senderPrivateKeyX25519JWK),
+        publicKeyfromX25519Jwk(x25519JwkPublicKey),
+    );
+    const jwe = await encryptJWE(jws, jwkFromSharedKey(sharedKey));
+
+    return jwe;
 }

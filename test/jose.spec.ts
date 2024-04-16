@@ -1,6 +1,6 @@
 import * as jose from "jose";
 
-import { compactJws } from "../src/common/jose/index";
+import { compactJws } from "../src/crypto/jose/index";
 
 // Test code
 describe("compactJwsWorks", () => {

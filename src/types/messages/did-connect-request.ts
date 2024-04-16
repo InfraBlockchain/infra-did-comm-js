@@ -2,13 +2,13 @@
  * Represents a request message for DID connection with detailed information.
  */
 
-import { inflateAndDecode } from "@src/utils/encode";
+import { deflateAndEncode, inflateAndDecode } from "@src/utils/encode";
 
 export class DIDConnectRequestMessage {
     type: string;
     from: string;
-    created_time: number;
-    expires_time: number;
+    createdTime: number;
+    expiresTime: number;
     body: {
         initiator: Initiator;
         context: Context;
@@ -17,23 +17,23 @@ export class DIDConnectRequestMessage {
      * Constructs a DIDConnectRequestMessage instance.
      * @param {String} type - The type of the message.
      * @param {String} from - The sender of the message.
-     * @param {Number} created_time - The creation time of the message.
-     * @param {Number} expires_time - The expiration time of the message.
+     * @param {Number} createdTime - The creation time of the message.
+     * @param {Number} expiresTime - The expiration time of the message.
      * @param {Object} initiator - The initiator's details.
      * @param {Object} context - The context details.
      */
     constructor(
         type: string,
         from: string,
-        created_time: number,
-        expires_time: number,
+        createdTime: number,
+        expiresTime: number,
         initiator: Initiator,
         context: Context,
     ) {
         this.type = type;
         this.from = from;
-        this.created_time = created_time;
-        this.expires_time = expires_time;
+        this.createdTime = createdTime;
+        this.expiresTime = expiresTime;
         this.body = {
             initiator: initiator,
             context: context,
@@ -48,8 +48,8 @@ export class DIDConnectRequestMessage {
         return {
             type: this.type,
             from: this.from,
-            created_time: this.created_time,
-            expires_time: this.expires_time,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
             body: this.body,
         };
     }
@@ -62,11 +62,11 @@ export class DIDConnectRequestMessage {
         return {
             type: this.type,
             from: this.from,
-            created_time: this.created_time,
-            expires_time: this.expires_time,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
             body: {
                 i: {
-                    se: this.body.initiator.service_endpoint,
+                    se: this.body.initiator.serviceEndpoint,
                     sid: this.body.initiator.socketId,
                 },
                 c: {
@@ -85,8 +85,8 @@ export class DIDConnectRequestMessage {
         return {
             type: this.type,
             from: this.from,
-            created_time: this.created_time,
-            expires_time: this.expires_time,
+            createdTime: this.createdTime,
+            expiresTime: this.expiresTime,
             body: {
                 i: {
                     sid: this.body.initiator.socketId,
@@ -105,9 +105,10 @@ export class DIDConnectRequestMessage {
      * @returns {DIDConnectRequestMessage} The new instance created from the JSON object.
      * @throws {Error} Throws an error if the JSON object is missing required keys.
      */
+
     static fromJSON(json: Record<string, any>): DIDConnectRequestMessage {
         // Extracting body for easier manipulation and type checking
-        const body = json.body;
+        const body: Record<string, any> = json.body;
 
         let initiator: Initiator;
         let context: Context;
@@ -116,35 +117,22 @@ export class DIDConnectRequestMessage {
         // Otherwise, it's treated as normal request message JSON.
         if ("i" in body && "c" in body) {
             // This handles both CompactJSONBody and MinimalJSONBody
-            const compactOrMinimalBody = body as
-                | CompactRequestMessageBody
-                | MinimalRequestMessageJSONBody;
-            initiator = {
-                socketId: compactOrMinimalBody.body.i.sid,
+            initiator = new Initiator({
+                socketId: body.i.sid,
                 // 'service_endpoint' might not be provided in MinimalJSON
-                service_endpoint:
-                    "se" in compactOrMinimalBody.body.i
-                        ? compactOrMinimalBody.body.i.se
-                        : undefined,
-            };
-            context = new Context(
-                compactOrMinimalBody.body.c.d,
-                compactOrMinimalBody.body.c.a,
-            );
+                serviceEndpoint: "se" in body.i ? body.i.se : undefined,
+            });
+            context = new Context(body.c.d, body.c.a);
         } else {
-            const requestMessageBody = body as RequestMessageBody;
-            initiator = requestMessageBody.body.initiator;
-            context = new Context(
-                requestMessageBody.body.context.domain,
-                requestMessageBody.body.context.action,
-            );
+            initiator = new Initiator(body.initiator);
+            context = new Context(body.context.domain, body.context.action);
         }
 
         return new DIDConnectRequestMessage(
             json.type,
             json.from,
-            json.created_time,
-            json.expires_time,
+            json.createdTime,
+            json.expiresTime,
             initiator,
             context,
         );
@@ -154,6 +142,29 @@ export class DIDConnectRequestMessage {
         try {
             const data = await inflateAndDecode(encoded);
             return this.fromJSON(data);
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    async encode(compressionLevel: CompressionLevel): Promise<string> {
+        try {
+            let data: Record<string, any>;
+            switch (compressionLevel) {
+                case CompressionLevel.RAW:
+                    data = this.toJSON();
+                    break;
+                case CompressionLevel.COMPACT:
+                    data = this.toCompactJSON();
+                    break;
+                case CompressionLevel.MINIMAL:
+                    data = this.toMinimalJSON();
+                    break;
+                default:
+                    throw new Error("Unsupported compression level");
+            }
+
+            return await deflateAndEncode(data);
         } catch (e) {
             throw e; // Rethrow the exception
         }
@@ -165,20 +176,60 @@ export class DIDConnectRequestMessage {
  * It includes optional type and service endpoint fields,
  * and a mandatory socket ID.
  */
-type Initiator = {
-    /**
-     * The type of the initiator, if available.
-     */
+
+class Initiator {
     type?: string;
-    /**
-     * The service endpoint of the initiator, if provided.
-     */
-    service_endpoint?: string;
-    /**
-     * The unique socket ID of the initiator.
-     */
+    serviceEndpoint?: string;
     socketId: string;
-};
+
+    constructor({
+        socketId,
+        type,
+        serviceEndpoint,
+    }: {
+        socketId: string;
+        type?: string;
+        serviceEndpoint?: string;
+    }) {
+        this.type = type;
+        this.socketId = socketId;
+        this.serviceEndpoint = serviceEndpoint;
+    }
+
+    static fromCompactJson(json: Record<string, any>): Initiator {
+        return new Initiator({
+            serviceEndpoint: json["se"],
+            socketId: json["sid"],
+        });
+    }
+
+    static fromMinimalCompactJson(json: Record<string, any>): Initiator {
+        return new Initiator({
+            socketId: json["sid"],
+        });
+    }
+
+    toJson(): Record<string, any> {
+        return {
+            type: this.type,
+            serviceEndpoint: this.serviceEndpoint,
+            socketId: this.socketId,
+        };
+    }
+
+    toCompactJson(): Record<string, any> {
+        return {
+            se: this.serviceEndpoint,
+            sid: this.socketId,
+        };
+    }
+
+    toMinimalCompactJson(): Record<string, any> {
+        return {
+            sid: this.socketId,
+        };
+    }
+}
 
 /**
  * Describes the context in which the connection is being initiated,
@@ -226,58 +277,6 @@ class Context {
     }
 }
 
-/**
- * Represents the body structure of a Normal JSON message, including
- * details about the initiator and the context of the message.
- */
-interface RequestMessageBody {
-    body: {
-        initiator: {
-            type: string;
-            serviceEndpoint: string;
-            socketId: string;
-        };
-        context: {
-            domain: string;
-            action: string;
-        };
-    };
-}
-
-/**
- * Describes the structure of a Compact JSON message body, which is a
- * more condensed version of the message including initiator and context
- * information with abbreviated keys.
- */
-interface CompactRequestMessageBody {
-    body: {
-        i: {
-            se: string; // Service Endpoint
-            sid: string; // Socket ID
-        };
-        c: {
-            d: string; // Domain
-            a: string; // Action
-        };
-    };
-}
-
-/**
- * Outlines the structure for a Minimal JSON message body, similar to
- * CompactJSONBody but potentially lacking the service endpoint.
- */
-interface MinimalRequestMessageJSONBody {
-    body: {
-        i: {
-            sid: string; // Socket ID only, service endpoint may be omitted
-        };
-        c: {
-            d: string; // Domain
-            a: string; // Action
-        };
-    };
-}
-
 export class DIDAuthInitMessage {
     id: string;
     type: string = "DIDAuthInitMessage";
@@ -321,10 +320,10 @@ export class DIDAuthInitMessage {
                 to: this.to,
                 // Only add createdTime and expiresTime if they are not undefined
                 ...(this.createdTime !== undefined && {
-                    created_time: this.createdTime,
+                    createdTime: this.createdTime,
                 }),
                 ...(this.expiresTime !== undefined && {
-                    expires_time: this.expiresTime,
+                    expiresTime: this.expiresTime,
                 }),
                 body: {
                     context: this.body.context.toJson(),
@@ -341,7 +340,7 @@ export class DIDAuthInitMessage {
 
 export class DIDAuthMessage {
     id: string;
-    type: string = "DIDAuthMessage";
+    type: string = "DIDAuth";
     from: string;
     to: string[];
     createdTime: number;
@@ -484,7 +483,7 @@ export class DIDConnectedMessage {
     }
 }
 
-export enum CompressType {
+export enum CompressionLevel {
     RAW = "raw",
     COMPACT = "compact",
     MINIMAL = "minimal",
