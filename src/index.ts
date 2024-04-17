@@ -1,4 +1,6 @@
-import * as common from "./crypto";
-import * as types from "./types";
+import * as crypto from "./crypto";
+import * as messages from "./messages";
+import * as utils from "./utils";
+import * as websocket from "./websocket";
 
-export { common, types };
+export { crypto, messages, utils, websocket };

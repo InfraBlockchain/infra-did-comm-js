@@ -2,7 +2,7 @@
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
-} from "@src/types/messages/did-connect-request";
+} from "@src/messages/did-connect-request";
 import { InfraDIDCommSocketClient } from "@src/websocket";
 
 import { initiatedByHolderScenarioVerifierClient } from "./socket_io_verifier";

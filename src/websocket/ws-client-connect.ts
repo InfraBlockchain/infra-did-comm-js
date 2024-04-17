@@ -1,7 +1,4 @@
-import {
-    DIDAuthInitMessage,
-    DIDConnectRequestMessage,
-} from "@src/types/messages/did-connect-request";
+import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
 import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,7 +48,7 @@ class InfraDIDCommSocketClient {
 
         this.socket.on("connect", () => {
             this._socketIdPromiseResolver(this.socket.id);
-            console.log("Socket connected2", this.socket.id);
+            console.log("Socket connected", this.socket.id);
         });
 
         this.socket.on("disconnect", () => {

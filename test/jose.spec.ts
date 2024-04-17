@@ -26,12 +26,10 @@ describe("compactJwsWorks", () => {
         const epk_pair = await jose.generateKeyPair("EdDSA", {
             extractable: true,
         });
-        console.log(epk_pair);
         const jws = await compactJws(payload, epk_pair.privateKey, {
             typ: "JWM",
             alg: "EdDSA",
         });
-        console.log("Compact JWS created:", jws);
         await jose.jwtVerify(jws, epk_pair.publicKey);
     });
 });

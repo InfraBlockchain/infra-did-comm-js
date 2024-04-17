@@ -1,46 +1,46 @@
 import { decode, encode } from "@stablelib/base64";
-import {
-    generateKeyPair,
-    generateKeyPairFromSeed,
-    sharedKey,
-} from "@stablelib/x25519";
+import { generateKeyPair, sharedKey } from "@stablelib/x25519";
 import { CryptoHelper } from "infra-did-js";
+import { JWK } from "jose";
 
-import { privateKeyFromUri, publicKeyFromUri } from "./key_convert";
+import { privateKeyFromMnemonic, publicKeyFromMnemonic } from "./key_convert";
 
-// Generate X25519 Ephemeral Key Pair
-export async function generateX25519EphemeralKeyPair(): Promise<
-    [Uint8Array, Uint8Array]
-> {
-    const { publicKey, secretKey } = generateKeyPair();
-    return [secretKey, publicKey];
+/**
+ * Represents an ephemeral key pair.
+ */
+interface EphemeralKeyPair {
+    ephemeralPrivateKey: Uint8Array;
+    ephemeralPublicKey: Uint8Array;
 }
 
-// Make 32-byte shared key from private key and public key
-export async function makeSharedKey(
+/**
+ * Generates an X25519 ephemeral key pair.
+ * @returns The generated ephemeral key pair.
+ */
+export function generateX25519EphemeralKeyPair(): EphemeralKeyPair {
+    const { publicKey, secretKey } = generateKeyPair();
+    return { ephemeralPrivateKey: secretKey, ephemeralPublicKey: publicKey };
+}
+
+/**
+ * Derives a shared key from a private key and a public key.
+ * @param privateKey - The private key.
+ * @param publicKey - The public key.
+ * @returns The derived shared key.
+ */
+export function deriveSharedKey(
     privateKey: Uint8Array,
     publicKey: Uint8Array,
-): Promise<Uint8Array> {
+): Uint8Array {
     return sharedKey(privateKey, publicKey);
 }
 
-// X25519 JWK from X25519 Private Key
-export async function x25519JwkFromX25519PrivateKey(
-    privateKey: Uint8Array,
-): Promise<Record<string, any>> {
-    const { publicKey, secretKey } = generateKeyPairFromSeed(privateKey);
-    return {
-        kty: "OKP",
-        crv: "X25519",
-        x: encode(publicKey),
-        d: encode(secretKey),
-    };
-}
-
-// X25519 JWK from X25519 Public Key
-export function x25519JwkFromX25519PublicKey(
-    publicKey: Uint8Array,
-): Record<string, any> {
+/**
+ * Converts an X25519 public key to a JWK (JSON Web Key) representation.
+ * @param publicKey - The X25519 public key.
+ * @returns The JWK representation of the X25519 public key.
+ */
+export function x25519JwkFromX25519PublicKey(publicKey: Uint8Array): JWK {
     return {
         kty: "OKP",
         crv: "X25519",
@@ -48,10 +48,12 @@ export function x25519JwkFromX25519PublicKey(
     };
 }
 
-// X25519 JWK from Ed25519 Public Key
-export function x25519JwkFromEd25519PublicKey(
-    publicKey: Uint8Array,
-): Record<string, any> {
+/**
+ * Converts an Ed25519 public key to an X25519 JWK (JSON Web Key) representation.
+ * @param publicKey - The Ed25519 public key.
+ * @returns The X25519 JWK representation of the Ed25519 public key.
+ */
+export function x25519JwkFromEd25519PublicKey(publicKey: Uint8Array): JWK {
     const x25519PublicKey = CryptoHelper.edToX25519Pk(
         publicKey,
         "u8a",
@@ -63,12 +65,14 @@ export function x25519JwkFromEd25519PublicKey(
     };
 }
 
-// X25519 JWK from Ed25519 Private Key
-export function x25519JwkFromMnemonic(mnemonic: string): Record<string, any> {
-    // ED25519 sk -> ED25519 pk
-    // ED25519 sk, pk -> X25519
-    const publicKeyED25519 = publicKeyFromUri(mnemonic);
-    const privateKeyED25519 = privateKeyFromUri(mnemonic);
+/**
+ * Converts a mnemonic to an X25519 JWK (JSON Web Key) representation.
+ * @param mnemonic - The mnemonic.
+ * @returns The X25519 JWK representation of the mnemonic.
+ */
+export function x25519JwkFromMnemonic(mnemonic: string): JWK {
+    const publicKeyED25519 = publicKeyFromMnemonic(mnemonic);
+    const privateKeyED25519 = privateKeyFromMnemonic(mnemonic);
 
     const priavteKeyX25519 = CryptoHelper.edToX25519Sk(
         publicKeyED25519,
@@ -88,8 +92,12 @@ export function x25519JwkFromMnemonic(mnemonic: string): Record<string, any> {
     };
 }
 
-// JWK from Shared Key
-export function jwkFromSharedKey(sharedKey: Uint8Array): Record<string, any> {
+/**
+ * Converts a shared key to a JWK (JSON Web Key) representation.
+ * @param sharedKey - The shared key.
+ * @returns The JWK representation of the shared key.
+ */
+export function jwkFromSharedKey(sharedKey: Uint8Array): JWK {
     return {
         kty: "oct",
         k: encode(sharedKey),
@@ -97,12 +105,20 @@ export function jwkFromSharedKey(sharedKey: Uint8Array): Record<string, any> {
     };
 }
 
-// Public Key from X25519 JWK
-export function publicKeyfromX25519Jwk(jwk: Record<string, any>): Uint8Array {
+/**
+ * Converts an X25519 JWK (JSON Web Key) representation to a public key.
+ * @param jwk - The X25519 JWK representation.
+ * @returns The public key.
+ */
+export function publicKeyfromX25519Jwk(jwk: JWK): Uint8Array {
     return decode(jwk["x"]);
 }
 
-// Private Key from X25519 JWK
-export function privateKeyfromX25519Jwk(jwk: Record<string, any>): Uint8Array {
+/**
+ * Converts an X25519 JWK (JSON Web Key) representation to a private key.
+ * @param jwk - The X25519 JWK representation.
+ * @returns The private key.
+ */
+export function privateKeyfromX25519Jwk(jwk: JWK): Uint8Array {
     return decode(jwk["d"]);
 }
