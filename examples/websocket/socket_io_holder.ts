@@ -68,6 +68,49 @@ async function initiatedByHolderScenario(): Promise<string> {
     }
 }
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export async function initiatedByVerifierScenarioHolderClient(
+    socketId: string,
+): Promise<string> {
+    const mnemonic =
+        "bamboo absorb chief dog box envelope leisure pink alone service spin more";
+    const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
+    const client = new InfraDIDCommSocketClient(
+        "http://data-market.test.newnal.com:9000",
+        did,
+        mnemonic,
+        "VERIFIER",
+    );
+
+    client.setDIDAuthInitCallback(didAuthInitCallback);
+    client.setDIDAuthCallback(didAuthCallback);
+    client.setDIDConnectedCallback(didConnectedCallback);
+    client.setDIDAuthFailedCallback(didAuthFailedCallback);
+
+    client.onMessage();
+    client.connect();
+
+    if (socketId) {
+        const verifierSocketId = socketId;
+        const minimalCompactJson = {
+            from: did,
+            body: {
+                i: { sid: verifierSocketId },
+                c: { d: "pet-i.net", a: "connect" },
+            },
+        };
+        const didConnectRequestMessage =
+            DIDConnectRequestMessage.fromJSON(minimalCompactJson);
+        const encoded = await didConnectRequestMessage.encode(
+            CompressionLevel.RAW,
+        );
+        console.log("Verifier make encoded request message: " + encoded);
+        return socketId;
+    } else {
+        console.log("Socket ID is null");
+    }
+}
+
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

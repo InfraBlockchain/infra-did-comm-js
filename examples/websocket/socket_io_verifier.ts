@@ -2,6 +2,8 @@
 import { CompressionLevel, DIDConnectRequestMessage } from "@src/messages";
 import { InfraDIDCommSocketClient } from "@src/websocket";
 
+import { initiatedByVerifierScenarioHolderClient } from "./socket_io_holder";
+
 function didAuthInitCallback(peerDID: string): boolean {
     console.log("DID Auth Init Callback", peerDID);
     return true;
@@ -65,7 +67,7 @@ export async function initiatedByHolderScenarioVerifierClient(
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-async function initiatedByVerifierScenario(): Promise<void> {
+async function initiatedByVerifierScenario(): Promise<string> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
@@ -100,14 +102,20 @@ async function initiatedByVerifierScenario(): Promise<void> {
             CompressionLevel.RAW,
         );
         console.log("Verifier make encoded request message: " + encoded);
+        return socketId;
     } else {
         console.log("Socket ID is null");
     }
 }
 
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function main(): Promise<void> {
-    await initiatedByHolderScenarioVerifierClient();
-    // await initiatedByVerifierScenario();
+    const socketId = await initiatedByVerifierScenario();
+    await sleep(1000);
+    await initiatedByVerifierScenarioHolderClient(socketId);
 }
 
 main();
