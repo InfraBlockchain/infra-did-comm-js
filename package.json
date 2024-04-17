@@ -18,11 +18,9 @@
     "scripts": {
         "test": "jest",
         "test:cov": "jest --coverage",
-        "start:dev": "ts-node-dev --poll --respawn --transpile-only src/index.ts --trace-sync-io",
-        "start:prod": "ts-node src/index.ts",
         "lint": "eslint \"{src,test}/**/*.ts\" --fix",
         "prettier": "prettier --write --config .prettierrc \"{src,test}/**/*.ts\"",
-        "build": "tsc",
+        "build": "yarn prebuild && tsc",
         "prebuild": "rimraf ./dist",
         "preinstall": "husky install",
         "pre-commit": "lint-staged"

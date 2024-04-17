@@ -1,6 +1,6 @@
 import * as jose from "jose";
 
-import { compactJws } from "../src/crypto/jose/index";
+import { compactJWS } from "../src/crypto/index";
 
 // Test code
 describe("compactJwsWorks", () => {
@@ -26,7 +26,7 @@ describe("compactJwsWorks", () => {
         const epk_pair = await jose.generateKeyPair("EdDSA", {
             extractable: true,
         });
-        const jws = await compactJws(payload, epk_pair.privateKey, {
+        const jws = await compactJWS(payload, epk_pair.privateKey, {
             typ: "JWM",
             alg: "EdDSA",
         });

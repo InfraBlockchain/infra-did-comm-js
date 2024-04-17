@@ -28,7 +28,7 @@
       "lazy": false,
       "noInterop": false
     },
-    "exclude": ["./src/**/.*.spec.ts$", "./**/.*.js$"],
+    "exclude": ["./src/**/.*.spec.ts$", "./**/.*.js$", "./examples/**", "./test/**"],
     "sourceMaps": true
    }
    
