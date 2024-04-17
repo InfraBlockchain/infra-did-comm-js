@@ -1,5 +1,6 @@
 import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
-import { io,Socket } from "socket.io-client";
+import { Context,Initiator } from "@src/messages/commons";
+import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -57,6 +58,28 @@ class InfraDIDCommSocketClient {
         });
 
         this.resetSocketIdPromise();
+    }
+
+    async create_connect_request_message(
+        currentTime: number,
+        timeOut: number,
+        context: Context,
+    ): Promise<DIDConnectRequestMessage> {
+        const socketId = await this.socketId;
+        const initiator = new Initiator({
+            type: this.role,
+            serviceEndpoint: this.url,
+            socketId,
+        });
+        const expiredTime: number = currentTime + timeOut;
+        return new DIDConnectRequestMessage(
+            "DIDConnectReq",
+            this.did,
+            currentTime,
+            expiredTime,
+            initiator,
+            context,
+        );
     }
 
     private resetSocketIdPromise(): void {
