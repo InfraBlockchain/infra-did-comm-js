@@ -19,7 +19,7 @@ export async function didConnectRequest(
     timeout: number,
     callback: (message: string) => void,
 ) {
-    while (!client.isDIDConnected) {
+    while (!client.isReceivedDIDAuthInit) {
         // Disconnect and reconnect the client with a brief pause in between
         await sleep(100);
         client.disconnect();
