@@ -1,5 +1,5 @@
 import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
-import { Context,Initiator } from "@src/messages/commons";
+import { Context, Initiator } from "@src/messages/commons";
 import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -60,7 +60,7 @@ class InfraDIDCommSocketClient {
         this.resetSocketIdPromise();
     }
 
-    async create_connect_request_message(
+    async createConnectRequestMessage(
         currentTime: number,
         timeOut: number,
         context: Context,

@@ -32,7 +32,7 @@ export async function didConnectRequest(
         await sleep(500);
 
         // Create a new DID connect request message
-        const message = await client.create_connect_request_message(
+        const message = await client.createConnectRequestMessage(
             currentTime,
             timeout,
             context,
