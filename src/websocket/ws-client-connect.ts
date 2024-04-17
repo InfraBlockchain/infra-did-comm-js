@@ -1,5 +1,5 @@
 import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
-import { io, Socket } from "socket.io-client";
+import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -28,8 +28,8 @@ class InfraDIDCommSocketClient {
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
     /* eslint-enable @typescript-eslint/no-unused-vars */
 
-    private _socketIdPromiseResolver: (value: string | null) => void;
-    socketId: Promise<string | null>;
+    private _socketIdPromiseResolver: (value: string) => void;
+    socketId: Promise<string>;
 
     constructor(url: string, did: string, mnemonic: string, role: string) {
         this.url = url;
@@ -52,7 +52,7 @@ class InfraDIDCommSocketClient {
         });
 
         this.socket.on("disconnect", () => {
-            this.resetSocketIdPromise();
+            this._socketIdPromiseResolver("");
             console.log("Socket disconnected");
         });
 

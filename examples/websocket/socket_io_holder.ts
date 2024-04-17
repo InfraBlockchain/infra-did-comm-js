@@ -45,6 +45,7 @@ async function initiateConnectionByHolder(): Promise<string> {
     client.connect();
 
     const socketId = await client.socketId;
+
     console.log("socketId", socketId);
     if (socketId) {
         const holderSocketId = socketId;
