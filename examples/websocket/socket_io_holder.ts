@@ -5,7 +5,7 @@ import {
 } from "@src/messages/did-connect-request";
 import { InfraDIDCommSocketClient } from "@src/websocket";
 
-import { initiatedByHolderScenarioVerifierClient } from "./socket_io_verifier";
+import { receiveConnectionInitiatedByHolder } from "./socket_io_verifier";
 
 export function didAuthInitCallback(peerDID: string): boolean {
     console.log("DID Auth Init Callback", peerDID);
@@ -25,7 +25,7 @@ export function didAuthFailedCallback(peerDID: string): void {
     console.log("DID Auth Failed Callback", peerDID);
 }
 
-async function initiatedByHolderScenario(): Promise<string> {
+async function initiateConnectionByHolder(): Promise<string> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
@@ -69,7 +69,7 @@ async function initiatedByHolderScenario(): Promise<string> {
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-export async function initiatedByVerifierScenarioHolderClient(
+export async function receiveConnectionInitiatedByVerifier(
     socketId: string,
 ): Promise<string> {
     const mnemonic =
@@ -116,9 +116,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function main() {
-    const socketId = await initiatedByHolderScenario();
+    const socketId = await initiateConnectionByHolder();
     await sleep(1000);
-    await initiatedByHolderScenarioVerifierClient(socketId);
+    await receiveConnectionInitiatedByHolder(socketId);
 }
 
 main();
