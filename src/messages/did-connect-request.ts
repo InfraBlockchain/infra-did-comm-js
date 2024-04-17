@@ -2,7 +2,8 @@
  * Represents a request message for DID connection with detailed information.
  */
 
-import { deflateAndEncode, inflateAndDecode } from "../utils/coding";
+import { deflateAndEncode, inflateAndDecode } from "@src/utils/coding";
+
 import { Context, Initiator } from "./commons";
 
 export class DIDConnectRequestMessage {
