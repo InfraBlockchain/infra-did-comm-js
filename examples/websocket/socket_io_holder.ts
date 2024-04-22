@@ -7,11 +7,6 @@ import { InfraDIDCommAgent } from "@src/websocket";
 
 import { receiveConnectionInitiatedByHolder } from "./socket_io_verifier";
 
-export function didAuthInitCallback(peerDID: string): boolean {
-    console.log("DID Auth Init Callback", peerDID);
-    return true;
-}
-
 export function didAuthCallback(peerDID: string): boolean {
     console.log("DID Auth Callback", peerDID);
     return true;
@@ -29,22 +24,21 @@ async function initiateConnectionByHolder(): Promise<string> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
-    const client = new InfraDIDCommAgent(
+    const agent = new InfraDIDCommAgent(
         "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,
         "HOLDER",
     );
 
-    client.setDIDAuthInitCallback(didAuthInitCallback);
-    client.setDIDAuthCallback(didAuthCallback);
-    client.setDIDConnectedCallback(didConnectedCallback);
-    client.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setDIDAuthCallback(didAuthCallback);
+    agent.setDIDConnectedCallback(didConnectedCallback);
+    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
 
-    client.onMessage();
-    client.connect();
+    agent.onMessage();
+    agent.connect();
 
-    const socketId = await client.socketId;
+    const socketId = await agent.socketId;
 
     console.log("socketId", socketId);
     if (socketId) {
@@ -58,7 +52,7 @@ async function initiateConnectionByHolder(): Promise<string> {
         };
         const didConnectRequestMessage =
             DIDConnectRequestMessage.fromJSON(minimalCompactJson);
-        const encoded = await didConnectRequestMessage.encode(
+        const encoded = didConnectRequestMessage.encode(
             CompressionLevel.MINIMAL,
         );
         console.log("Holder make encoded request message: " + encoded);
@@ -76,20 +70,19 @@ export async function receiveConnectionInitiatedByVerifier(
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
-    const client = new InfraDIDCommAgent(
+    const agent = new InfraDIDCommAgent(
         "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,
         "VERIFIER",
     );
 
-    client.setDIDAuthInitCallback(didAuthInitCallback);
-    client.setDIDAuthCallback(didAuthCallback);
-    client.setDIDConnectedCallback(didConnectedCallback);
-    client.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setDIDAuthCallback(didAuthCallback);
+    agent.setDIDConnectedCallback(didConnectedCallback);
+    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
 
-    client.onMessage();
-    client.connect();
+    agent.onMessage();
+    agent.connect();
 
     if (socketId) {
         const verifierSocketId = socketId;
@@ -102,9 +95,7 @@ export async function receiveConnectionInitiatedByVerifier(
         };
         const didConnectRequestMessage =
             DIDConnectRequestMessage.fromJSON(minimalCompactJson);
-        const encoded = await didConnectRequestMessage.encode(
-            CompressionLevel.RAW,
-        );
+        const encoded = didConnectRequestMessage.encode(CompressionLevel.RAW);
         console.log("Verifier make encoded request message: " + encoded);
         return socketId;
     } else {

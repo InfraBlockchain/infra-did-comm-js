@@ -1,2 +1,2 @@
-export * from "./did-comm-agent-connect";
+export * from "./agent";
 export * from "./message-handler";

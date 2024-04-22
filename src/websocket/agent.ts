@@ -22,7 +22,6 @@ export class InfraDIDCommAgent {
     isReceivedDIDAuthInit: boolean = false;
 
     /* eslint-disable @typescript-eslint/no-unused-vars */
-    didAuthInitCallback: (peerDID: string) => boolean = peerDID => true;
     didAuthCallback: (peerDID: string) => boolean = peerDID => true;
     didConnectedCallback: (peerDID: string) => void = peerDID => {};
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
@@ -87,10 +86,6 @@ export class InfraDIDCommAgent {
         });
     }
 
-    setDIDAuthInitCallback(callback: (peerDID: string) => boolean): void {
-        this.didAuthInitCallback = callback;
-    }
-
     setDIDAuthCallback(callback: (peerDID: string) => boolean): void {
         this.didAuthCallback = callback;
     }
@@ -103,57 +98,44 @@ export class InfraDIDCommAgent {
         this.didAuthFailedCallback = callback;
     }
 
-    initWithDynamicQR(domain: string, action: string, timeout: number): void {
-        const context: Context = new Context(domain, action);
-        this.socket.on("message", (data: any) => {
-            messageHandler(
-                data,
-                this.mnemonic,
-                this.did,
-                this,
-                this.didAuthInitCallback,
-                this.didAuthCallback,
-                this.didConnectedCallback,
-                this.didAuthFailedCallback,
-            );
-        });
-
+    init(): void {
+        this.onMessage();
         this.socket.connect();
-
-        didConnectRequest(this, context, timeout, message => {
-            console.log(message);
-        });
     }
 
-    async initWithReceivedQR(qrEncoded: string): Promise<void> {
-        this.socket.on("message", (data: any) => {
-            messageHandler(
-                data,
-                this.mnemonic,
-                this.did,
-                this,
-                this.didAuthInitCallback,
-                this.didAuthCallback,
-                this.didConnectedCallback,
-                this.didAuthFailedCallback,
-            );
-        });
-
+    initFromConnectRequest(encoded: string): void {
+        this.onMessage();
         this.socket.connect();
-
-        await this.sendDIDAuthInitMessage(qrEncoded);
+        this.sendDIDAuthInitMessage(encoded);
     }
 
-    initWithStaticQr(): void {}
+    initFromStaticConnectRequest(): void {
+        this.onMessage();
+        this.socket.connect();
+        // TODO: Implement static connect request
+    }
+
+    initWithConnectRequest(
+        context: Context,
+        timeout: number,
+        callback: (message: string) => void,
+    ): void {
+        this.onMessage();
+        didConnectRequest(this, context, timeout, callback);
+    }
+
+    reset(): void {
+        this.peerInfo = {};
+        this.isDIDConnected = false;
+        this.isReceivedDIDAuthInit = false;
+    }
 
     connect(): void {
         this.socket.connect();
     }
 
     disconnect(): void {
-        this.peerInfo = {};
-        this.isDIDConnected = false;
-        this.isReceivedDIDAuthInit = false;
+        this.reset();
         this.socket.disconnect();
     }
 
@@ -164,7 +146,6 @@ export class InfraDIDCommAgent {
                 this.mnemonic,
                 this.did,
                 this,
-                this.didAuthInitCallback,
                 this.didAuthCallback,
                 this.didConnectedCallback,
                 this.didAuthFailedCallback,
@@ -174,7 +155,7 @@ export class InfraDIDCommAgent {
 
     async sendDIDAuthInitMessage(encoded: string): Promise<void> {
         const didConnectRequestMessage =
-            await DIDConnectRequestMessage.decode(encoded);
+            DIDConnectRequestMessage.decode(encoded);
 
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
