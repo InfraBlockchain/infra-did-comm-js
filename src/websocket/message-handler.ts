@@ -30,13 +30,13 @@ import { exportJWK } from "jose";
 import { Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
-import { InfraDIDCommSocketClient } from "./ws-client-connect";
+import { InfraDIDCommAgent } from "./did-comm-agent-connect";
 
 export async function messageHandler(
     jwe: string,
     mnemonic: string,
     did: string,
-    client: InfraDIDCommSocketClient,
+    client: InfraDIDCommAgent,
     didAuthInitCallback?: (peerDID: string) => boolean,
     didAuthCallback?: (peerDID: string) => boolean,
     didConnectedCallback?: (peerDID: string) => void,
@@ -136,7 +136,7 @@ export async function sendDIDAuthInitMessageToReceiver(
     message: DIDAuthInitMessage,
     mnemonic: string,
     receiverDID: string,
-    client: InfraDIDCommSocketClient,
+    client: InfraDIDCommAgent,
 ): Promise<string> {
     const jsonMessage = message;
     const stringMessage = JSON.stringify(jsonMessage);
@@ -240,7 +240,7 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
 export async function sendDIDConnectedMessageFromDIDConnectedMessage(
     mnemonic: string,
     didConnectedMessagePayload: any, // Assuming an appropriate interface/type for the payload
-    client: InfraDIDCommSocketClient,
+    client: InfraDIDCommAgent,
 ): Promise<void> {
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
@@ -269,7 +269,7 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
 export async function sendDIDAuthFailedMessage(
     mnemonic: string,
     did: string,
-    client: InfraDIDCommSocketClient,
+    client: InfraDIDCommAgent,
     context?: any, // Assumix`ng an appropriate interface/type for the context
 ): Promise<void> {
     const currentTime = Math.floor(Date.now() / 1000);

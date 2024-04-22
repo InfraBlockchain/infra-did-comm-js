@@ -1,16 +1,15 @@
 import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
 import { Context, Initiator } from "@src/messages/commons";
-import { io, Socket } from "socket.io-client";
+import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
+import { didConnectRequest } from "./dynamic-qr";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
 } from "./message-handler";
 
-export { InfraDIDCommSocketClient };
-
-class InfraDIDCommSocketClient {
+export class InfraDIDCommAgent {
     did: string;
     mnemonic: string;
     role: string = "HOLDER";
@@ -103,6 +102,49 @@ class InfraDIDCommSocketClient {
     setDIDAuthFailedCallback(callback: (peerDID: string) => void): void {
         this.didAuthFailedCallback = callback;
     }
+
+    initWithDynamicQR(domain: string, action: string, timeout: number): void {
+        const context: Context = new Context(domain, action);
+        this.socket.on("message", (data: any) => {
+            messageHandler(
+                data,
+                this.mnemonic,
+                this.did,
+                this,
+                this.didAuthInitCallback,
+                this.didAuthCallback,
+                this.didConnectedCallback,
+                this.didAuthFailedCallback,
+            );
+        });
+
+        this.socket.connect();
+
+        didConnectRequest(this, context, timeout, message => {
+            console.log(message);
+        });
+    }
+
+    async initWithReceivedQR(qrEncoded: string): Promise<void> {
+        this.socket.on("message", (data: any) => {
+            messageHandler(
+                data,
+                this.mnemonic,
+                this.did,
+                this,
+                this.didAuthInitCallback,
+                this.didAuthCallback,
+                this.didConnectedCallback,
+                this.didAuthFailedCallback,
+            );
+        });
+
+        this.socket.connect();
+
+        await this.sendDIDAuthInitMessage(qrEncoded);
+    }
+
+    initWithStaticQr(): void {}
 
     connect(): void {
         this.socket.connect();

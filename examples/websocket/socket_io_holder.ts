@@ -3,7 +3,7 @@ import {
     CompressionLevel,
     DIDConnectRequestMessage,
 } from "@src/messages/did-connect-request";
-import { InfraDIDCommSocketClient } from "@src/websocket";
+import { InfraDIDCommAgent } from "@src/websocket";
 
 import { receiveConnectionInitiatedByHolder } from "./socket_io_verifier";
 
@@ -29,7 +29,7 @@ async function initiateConnectionByHolder(): Promise<string> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
-    const client = new InfraDIDCommSocketClient(
+    const client = new InfraDIDCommAgent(
         "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,
@@ -76,7 +76,7 @@ export async function receiveConnectionInitiatedByVerifier(
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
-    const client = new InfraDIDCommSocketClient(
+    const client = new InfraDIDCommAgent(
         "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,

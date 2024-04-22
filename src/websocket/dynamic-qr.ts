@@ -1,6 +1,6 @@
 import { CompressionLevel } from "@src/messages";
 import { Context } from "@src/messages/commons";
-import { InfraDIDCommSocketClient } from "@src/websocket/index";
+import { InfraDIDCommAgent } from "@src/websocket/index";
 
 /**
  * Continuously attempts to establish a DID connection by sending connect request messages until a connection is established.
@@ -8,13 +8,13 @@ import { InfraDIDCommSocketClient } from "@src/websocket/index";
  * This function enters a loop that continues until `client.isDIDConnected` becomes true. In each iteration, it disconnects and reconnects the client,
  * then sends a DID connect request message. The loop includes delays to manage timing and pacing of operations.
  *
- * @param {InfraDIDCommSocketClient} client - The DIDComm socket client instance used to manage connections.
+ * @param {InfraDIDCommAgent} client - The DIDComm socket client instance used to manage connections.
  * @param {Context} context - The context for the DID connect request, containing necessary metadata.
  * @param {number} timeout - The timeout in seconds for the connect request. Also used as a delay before the next iteration.
  * @param {(message: string) => void} callback - A callback function that is called with the encoded connect request message.
  */
 export async function didConnectRequest(
-    client: InfraDIDCommSocketClient,
+    client: InfraDIDCommAgent,
     context: Context,
     timeout: number,
     callback: (message: string) => void,
