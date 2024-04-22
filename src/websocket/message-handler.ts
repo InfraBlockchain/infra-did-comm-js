@@ -1,3 +1,8 @@
+import { CryptoHelper } from "infra-did-js";
+import { exportJWK } from "jose";
+import { Socket } from "socket.io-client";
+import { v4 as uuidv4 } from "uuid";
+
 import {
     compactJWS,
     decodeJWS,
@@ -5,13 +10,13 @@ import {
     encryptJWE,
     extractJWEHeader,
     verifyJWS,
-} from "@src/crypto";
+} from "../crypto";
 import {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
     DIDConnectedMessage,
-} from "@src/messages";
+} from "../messages";
 import {
     deriveSharedKey,
     generateX25519EphemeralKeyPair,
@@ -24,12 +29,7 @@ import {
     x25519JwkFromEd25519PublicKey,
     x25519JwkFromMnemonic,
     x25519JwkFromX25519PublicKey,
-} from "@src/utils";
-import { CryptoHelper } from "infra-did-js";
-import { exportJWK } from "jose";
-import { Socket } from "socket.io-client";
-import { v4 as uuidv4 } from "uuid";
-
+} from "../utils";
 import { InfraDIDCommSocketClient } from "./ws-client-connect";
 
 export async function messageHandler(

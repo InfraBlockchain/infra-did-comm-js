@@ -2,9 +2,8 @@
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
-} from "@src/messages/did-connect-request";
-import { InfraDIDCommSocketClient } from "@src/websocket";
-
+} from "../messages/did-connect-request";
+import { InfraDIDCommSocketClient } from "../websocket";
 import { receiveConnectionInitiatedByHolder } from "./socket_io_verifier";
 
 export function didAuthInitCallback(peerDID: string): boolean {

@@ -1,7 +1,6 @@
 // socket_io_verifier.ts
-import { CompressionLevel, DIDConnectRequestMessage } from "@src/messages";
-import { InfraDIDCommSocketClient } from "@src/websocket";
-
+import { CompressionLevel, DIDConnectRequestMessage } from "../messages";
+import { InfraDIDCommSocketClient } from "../websocket";
 import { receiveConnectionInitiatedByVerifier } from "./socket_io_holder";
 
 function didAuthInitCallback(peerDID: string): boolean {

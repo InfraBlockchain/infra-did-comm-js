@@ -1,8 +1,8 @@
-import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
-import { Context, Initiator } from "@src/messages/commons";
 import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
+import { DIDAuthInitMessage, DIDConnectRequestMessage } from "../messages";
+import { Context, Initiator } from "../messages/commons";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
