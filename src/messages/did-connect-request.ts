@@ -139,9 +139,9 @@ export class DIDConnectRequestMessage {
      * @returns {Promise<DIDConnectRequestMessage>} A promise that resolves to the decoded message.
      * @throws {Error} Throws an error if decoding fails.
      */
-    static async decode(encoded: string): Promise<DIDConnectRequestMessage> {
+    static decode(encoded: string): DIDConnectRequestMessage {
         try {
-            const data = await inflateAndDecode(encoded);
+            const data = inflateAndDecode(encoded);
             return this.fromJSON(data);
         } catch (e) {
             throw e;
@@ -154,7 +154,7 @@ export class DIDConnectRequestMessage {
      * @returns {Promise<string>} A promise that resolves to the encoded message.
      * @throws {Error} Throws an error if encoding fails.
      */
-    async encode(compressionLevel: CompressionLevel): Promise<string> {
+     encode(compressionLevel: CompressionLevel): string {
         try {
             let data: Record<string, any>;
             switch (compressionLevel) {
@@ -171,7 +171,7 @@ export class DIDConnectRequestMessage {
                     throw new Error("Unsupported compression level");
             }
 
-            return await deflateAndEncode(data);
+            return deflateAndEncode(data);
         } catch (e) {
             throw e; // Rethrow the exception
         }

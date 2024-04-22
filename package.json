@@ -45,6 +45,7 @@
         "@swc/helpers": "^0.5.6",
         "@types/jest": "29.5.12",
         "@types/node": "^20.11.20",
+        "@types/path-browserify": "^1",
         "@types/uuid": "^9",
         "@typescript-eslint/eslint-plugin": "^7.0.2",
         "@typescript-eslint/parser": "^7.0.2",
@@ -60,6 +61,7 @@
         "microbundle": "^0.15.1",
         "prettier": "^3.2.5",
         "rimraf": "^5.0.5",
+        "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-jest": "29.1.2",
         "ts-node": "^10.9.2",
         "ts-node-dev": "^2.0.0",
@@ -74,7 +76,6 @@
         "@stablelib/ed25519": "^1.0.3",
         "@stablelib/x25519": "^1.0.3",
         "base64url": "^3.0.1",
-        "browserify-zlib": "^0.2.0",
         "buffer-browserify": "^0.2.5",
         "crypto-browserify": "^3.12.0",
         "infra-did-js": "^1.1.0",
@@ -82,8 +83,8 @@
         "jsonwebtoken": "^9.0.2",
         "socket.io": "^4.7.5",
         "socket.io-client": "^4.7.5",
-        "uuid": "^9.0.1",
-        "zlib": "^1.0.5"
+        "stream-browserify": "^3.0.0",
+        "uuid": "^9.0.1"
     },
     "engines": {
         "node": ">=18.14"

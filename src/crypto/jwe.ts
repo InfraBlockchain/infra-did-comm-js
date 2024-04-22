@@ -1,4 +1,5 @@
 import base64url from "base64url";
+import { Buffer } from "buffer";
 import * as jose from "jose";
 import {
     compactDecrypt,

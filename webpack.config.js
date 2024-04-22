@@ -9,12 +9,11 @@ module.exports = {
         fallback: {
             "util": false,
             "stream": require.resolve('stream-browserify'),
-            "crypto": require.resolve('crypto-browserify'),
-            "zlib": require.resolve('browserify-zlib')
+            "crypto": require.resolve('crypto-browserify')
         }
     },
     entry: {
-        app: './dist/src/index.js'
+        app: './lib/index.js'
     },
     module: {
         rules: [{
@@ -47,6 +46,6 @@ module.exports = {
         path: path.join(__dirname, 'dist'),
         filename: 'infra-did-comm.js',
         // libraryTarget: 'var',
-        library: 'InfraDIDCommJs',
+        library: 'infra_did_comm_js',
     },
 }
