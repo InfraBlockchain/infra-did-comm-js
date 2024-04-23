@@ -1,6 +1,6 @@
-import { Context } from "@src/messages/commons";
-import { didConnectRequest } from "@src/websocket/dynamic-qr";
-import { InfraDIDCommAgent } from "@src/websocket/index";
+import { Context } from "../../src/messages/commons";
+import { didConnectRequest } from "../../src/websocket/dynamic-qr";
+import { InfraDIDCommAgent } from "../../src/websocket/index";
 
 async function dynamic_qr_works() {
     const mnemonic =

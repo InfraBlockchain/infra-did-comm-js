@@ -1,6 +1,6 @@
-import { CompressionLevel } from "@src/messages";
-import { Context } from "@src/messages/commons";
-import { InfraDIDCommAgent } from "@src/websocket/index";
+import { CompressionLevel } from "../../src/messages";
+import { Context } from "../../src/messages/commons";
+import { InfraDIDCommAgent } from "../../src/websocket/index";
 
 /**
  * Continuously attempts to establish a DID connection by sending connect request messages until a connection is established.

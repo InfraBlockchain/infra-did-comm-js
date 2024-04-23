@@ -1,6 +1,6 @@
 // socket_io_verifier.ts
-import { CompressionLevel, DIDConnectRequestMessage } from "@src/messages";
-import { InfraDIDCommAgent } from "@src/websocket";
+import { CompressionLevel, DIDConnectRequestMessage } from "../../src/messages";
+import { InfraDIDCommAgent } from "../../src/websocket";
 
 function didAuthCallback(peerDID: string): boolean {
     console.log("DID Auth Callback", peerDID);

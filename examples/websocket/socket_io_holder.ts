@@ -2,8 +2,8 @@
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
-} from "@src/messages/did-connect-request";
-import { InfraDIDCommAgent } from "@src/websocket";
+} from "../../src/messages/did-connect-request";
+import { InfraDIDCommAgent } from "../../src/websocket";
 
 export function didAuthCallback(peerDID: string): boolean {
     console.log("DID Auth Callback", peerDID);
