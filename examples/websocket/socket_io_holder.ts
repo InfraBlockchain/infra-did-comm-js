@@ -5,8 +5,6 @@ import {
 } from "@src/messages/did-connect-request";
 import { InfraDIDCommAgent } from "@src/websocket";
 
-import { receiveConnectionInitiatedByHolder } from "./socket_io_verifier";
-
 export function didAuthCallback(peerDID: string): boolean {
     console.log("DID Auth Callback", peerDID);
     return true;
@@ -20,7 +18,8 @@ export function didAuthFailedCallback(peerDID: string): void {
     console.log("DID Auth Failed Callback", peerDID);
 }
 
-async function initiateConnectionByHolder(): Promise<string> {
+/* eslint-disable @typescript-eslint/no-unused-vars */
+async function initiateConnectionByHolder(): Promise<void> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
@@ -35,12 +34,10 @@ async function initiateConnectionByHolder(): Promise<string> {
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
 
-    agent.onMessage();
-    agent.connect();
+    agent.init();
 
     const socketId = await agent.socketId;
 
-    console.log("socketId", socketId);
     if (socketId) {
         const holderSocketId = socketId;
         const minimalCompactJson = {
@@ -56,17 +53,12 @@ async function initiateConnectionByHolder(): Promise<string> {
             CompressionLevel.MINIMAL,
         );
         console.log("Holder make encoded request message: " + encoded);
-        return socketId;
     } else {
         console.log("Socket ID is null");
-        return "";
     }
 }
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-export async function receiveConnectionInitiatedByVerifier(
-    socketId: string,
-): Promise<string> {
+export async function receiveConnectionInitiatedByVerifier(): Promise<void> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
@@ -74,18 +66,18 @@ export async function receiveConnectionInitiatedByVerifier(
         "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,
-        "VERIFIER",
+        "HOLDER",
     );
 
     agent.setDIDAuthCallback(didAuthCallback);
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
 
-    agent.onMessage();
-    agent.connect();
+    agent.init();
+    const socketId = await agent.socketId;
 
     if (socketId) {
-        const verifierSocketId = socketId;
+        const verifierSocketId = "dYpPp0XNGWKQ-VDaAAu7";
         const minimalCompactJson = {
             from: did,
             body: {
@@ -96,21 +88,16 @@ export async function receiveConnectionInitiatedByVerifier(
         const didConnectRequestMessage =
             DIDConnectRequestMessage.fromJSON(minimalCompactJson);
         const encoded = didConnectRequestMessage.encode(CompressionLevel.RAW);
-        console.log("Verifier make encoded request message: " + encoded);
-        return socketId;
+        console.log("Received encoded request message: " + encoded);
+        await agent.sendDIDAuthInitMessage(encoded);
     } else {
         console.log("Socket ID is null");
     }
 }
 
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 async function main() {
-    const socketId = await initiateConnectionByHolder();
-    await sleep(1000);
-    await receiveConnectionInitiatedByHolder(socketId);
+    // await initiateConnectionByHolder();
+    await receiveConnectionInitiatedByVerifier();
 }
 
 main();

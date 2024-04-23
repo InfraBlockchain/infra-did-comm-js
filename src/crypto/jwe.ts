@@ -14,7 +14,7 @@ import {
  * @param epk - Optional ephemeral public key.
  * @returns The encrypted JWE string.
  */
-export async function encryptJWE(
+export async function compactJWE(
     plaintext: string,
     key: Record<string, any>,
     epk?: Record<string, any>,

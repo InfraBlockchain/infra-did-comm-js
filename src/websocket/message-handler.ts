@@ -1,8 +1,8 @@
 import {
+    compactJWE,
     compactJWS,
     decodeJWS,
     decryptJWE,
-    encryptJWE,
     extractJWEHeader,
     verifyJWS,
 } from "@src/crypto";
@@ -168,7 +168,7 @@ export async function sendDIDAuthInitMessageToReceiver(
         publicKeyfromX25519Jwk(x25519JwkPublicKey),
     );
 
-    const jwe = await encryptJWE(
+    const jwe = await compactJWE(
         jws,
         await exportJWK(sharedKey),
         x25519JwkFromX25519PublicKey(ephemeralPublicKey),
@@ -331,7 +331,7 @@ async function createEncryptedJWE(
         privateKeyfromX25519Jwk(senderPrivateKeyX25519JWK),
         publicKeyfromX25519Jwk(x25519JwkPublicKey),
     );
-    const jwe = await encryptJWE(jws, jwkFromSharedKey(sharedKey));
+    const jwe = await compactJWE(jws, jwkFromSharedKey(sharedKey));
 
     return jwe;
 }
