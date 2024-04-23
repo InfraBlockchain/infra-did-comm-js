@@ -16,8 +16,6 @@ Feature provided by infra-did-comm-js Library :
 
 ## Installation
 
--   **Using [pub](https://pub.dev)**:
-
 ```sh
 yarn add infra-did-comm-js # currently not work cause this library is not published yet in the npm
 yarn add https://github.com/InfraBlockchain/infra-did-comm-js.git # add with git url now
