@@ -1,30 +1,30 @@
-import { CompressionLevel } from "@src/messages";
-import { Context } from "@src/messages/commons";
-import { InfraDIDCommSocketClient } from "@src/websocket/index";
+import { CompressionLevel } from "../../src/messages";
+import { Context } from "../../src/messages/commons";
+import { InfraDIDCommAgent } from "../../src/websocket/index";
 
 /**
  * Continuously attempts to establish a DID connection by sending connect request messages until a connection is established.
  *
- * This function enters a loop that continues until `client.isDIDConnected` becomes true. In each iteration, it disconnects and reconnects the client,
+ * This function enters a loop that continues until `agent.isDIDConnected` becomes true. In each iteration, it disconnects and reconnects the agent,
  * then sends a DID connect request message. The loop includes delays to manage timing and pacing of operations.
  *
- * @param {InfraDIDCommSocketClient} client - The DIDComm socket client instance used to manage connections.
+ * @param {InfraDIDCommAgent} agent - The DIDComm socket agent instance used to manage connections.
  * @param {Context} context - The context for the DID connect request, containing necessary metadata.
  * @param {number} timeout - The timeout in seconds for the connect request. Also used as a delay before the next iteration.
  * @param {(message: string) => void} callback - A callback function that is called with the encoded connect request message.
  */
 export async function didConnectRequest(
-    client: InfraDIDCommSocketClient,
+    agent: InfraDIDCommAgent,
     context: Context,
     timeout: number,
     callback: (message: string) => void,
 ) {
-    while (!client.isReceivedDIDAuthInit) {
-        // Disconnect and reconnect the client with a brief pause in between
+    while (!agent.isReceivedDIDAuthInit) {
+        // Disconnect and reconnect the agent with a brief pause in between
         await sleep(100);
-        client.disconnect();
+        agent.disconnect();
         await sleep(100);
-        client.connect();
+        agent.connect();
 
         // Calculate the current time in seconds
         const currentTime = Math.floor(Date.now() / 1000);
@@ -32,13 +32,13 @@ export async function didConnectRequest(
         await sleep(500);
 
         // Create a new DID connect request message
-        const message = await client.createConnectRequestMessage(
+        const message = await agent.createConnectRequestMessage(
             currentTime,
             timeout,
             context,
         );
         // Encode the message with the specified compression level
-        const encodedMessage = await message.encode(CompressionLevel.RAW);
+        const encodedMessage = message.encode(CompressionLevel.RAW);
         // Invoke the callback with the encoded message
         callback(encodedMessage);
 

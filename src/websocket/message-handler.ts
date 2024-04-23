@@ -1,17 +1,22 @@
+import { CryptoHelper } from "infra-did-js";
+import { exportJWK } from "jose";
+import { Socket } from "socket.io-client";
+import { v4 as uuidv4 } from "uuid";
+
 import {
+    compactJWE,
     compactJWS,
     decodeJWS,
     decryptJWE,
-    encryptJWE,
     extractJWEHeader,
     verifyJWS,
-} from "@src/crypto";
+} from "../crypto";
 import {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
     DIDConnectedMessage,
-} from "@src/messages";
+} from "../messages";
 import {
     deriveSharedKey,
     generateX25519EphemeralKeyPair,
@@ -24,20 +29,14 @@ import {
     x25519JwkFromEd25519PublicKey,
     x25519JwkFromMnemonic,
     x25519JwkFromX25519PublicKey,
-} from "@src/utils";
-import { CryptoHelper } from "infra-did-js";
-import { exportJWK } from "jose";
-import { Socket } from "socket.io-client";
-import { v4 as uuidv4 } from "uuid";
-
-import { InfraDIDCommSocketClient } from "./ws-client-connect";
+} from "../utils";
+import { InfraDIDCommAgent } from "./agent";
 
 export async function messageHandler(
     jwe: string,
     mnemonic: string,
     did: string,
-    client: InfraDIDCommSocketClient,
-    didAuthInitCallback?: (peerDID: string) => boolean,
+    agent: InfraDIDCommAgent,
     didAuthCallback?: (peerDID: string) => boolean,
     didConnectedCallback?: (peerDID: string) => void,
     didAuthFailedCallback?: (peerDID: string) => void,
@@ -69,16 +68,16 @@ export async function messageHandler(
             const objectJWK = CryptoHelper.jwk2KeyObject(JWK, "public");
 
             const verifiedPayload = await verifyJWS(jwsFromJwe, objectJWK);
-            client.peerInfo = {
+            agent.peerInfo = {
                 did: verifiedPayload["from"],
                 socketId: verifiedPayload["body"]["socketId"],
             };
-            client.isReceivedDIDAuthInit = true;
+            agent.isReceivedDIDAuthInit = true;
 
-            sendDIDAuthMessage(mnemonic, verifiedPayload, client.socket);
+            sendDIDAuthMessage(mnemonic, verifiedPayload, agent.socket);
         } else if (alg === "dir") {
-            if ("did" in client.peerInfo) {
-                const fromDID = client.peerInfo["did"];
+            if ("did" in agent.peerInfo) {
+                const fromDID = agent.peerInfo["did"];
                 const fromAddress = fromDID.split(":").pop();
                 const fromPublicKey = publicKeyFromAddress(fromAddress);
                 const x25519JwkPublicKey =
@@ -100,35 +99,34 @@ export async function messageHandler(
 
                 if (jwsPayload["type"] === "DIDAuth") {
                     console.log("DIDAuth Message Received");
+                    didAuthCallback?.(fromDID);
                     sendDIDConnectedMessageFromDIDAuthMessage(
                         mnemonic,
                         jwsPayload,
-                        client.socket,
+                        agent.socket,
                     );
                 } else if (jwsPayload["type"] === "DIDConnected") {
                     console.log("DIDConnected Message Received");
                     didConnectedCallback?.(fromDID);
-                    client.isDIDConnected = true;
-                    if (client.role === "VERIFIER") {
+                    agent.isDIDConnected = true;
+                    if (agent.role === "VERIFIER") {
                         sendDIDConnectedMessageFromDIDConnectedMessage(
                             mnemonic,
                             jwsPayload,
-                            client,
+                            agent,
                         );
                     }
                 } else if (jwsPayload["type"] === "DIDAuthFailed") {
                     didAuthFailedCallback?.(fromDID);
                     console.log("DIDAuthFailed Message Received");
-                    client.disconnect();
+                    agent.disconnect();
                 }
             }
         }
     } catch (e) {
-        Object.keys(client.peerInfo).forEach(
-            key => delete client.peerInfo[key],
-        );
-        sendDIDAuthFailedMessage(mnemonic, did, client);
-        client.disconnect();
+        Object.keys(agent.peerInfo).forEach(key => delete agent.peerInfo[key]);
+        sendDIDAuthFailedMessage(mnemonic, did, agent);
+        agent.disconnect();
     }
 }
 
@@ -136,7 +134,7 @@ export async function sendDIDAuthInitMessageToReceiver(
     message: DIDAuthInitMessage,
     mnemonic: string,
     receiverDID: string,
-    client: InfraDIDCommSocketClient,
+    agent: InfraDIDCommAgent,
 ): Promise<string> {
     const jsonMessage = message;
     const stringMessage = JSON.stringify(jsonMessage);
@@ -148,7 +146,7 @@ export async function sendDIDAuthInitMessageToReceiver(
     const receiverPublicKey = publicKeyFromAddress(
         receiverDID.split(":").pop(),
     );
-    client.peerInfo = {
+    agent.peerInfo = {
         did: message.from,
         socketId: message.body.peerSocketId,
     };
@@ -170,7 +168,7 @@ export async function sendDIDAuthInitMessageToReceiver(
         publicKeyfromX25519Jwk(x25519JwkPublicKey),
     );
 
-    const jwe = await encryptJWE(
+    const jwe = await compactJWE(
         jws,
         await exportJWK(sharedKey),
         x25519JwkFromX25519PublicKey(ephemeralPublicKey),
@@ -240,7 +238,7 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
 export async function sendDIDConnectedMessageFromDIDConnectedMessage(
     mnemonic: string,
     didConnectedMessagePayload: any, // Assuming an appropriate interface/type for the payload
-    client: InfraDIDCommSocketClient,
+    agent: InfraDIDCommAgent,
 ): Promise<void> {
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
@@ -262,21 +260,21 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
         receiverDID,
     );
 
-    client.socket.emit("message", { to: client.peerInfo["socketId"], m: jwe });
-    console.log(`DIDConnectedMessage sent to ${client.peerInfo["socketId"]}`);
+    agent.socket.emit("message", { to: agent.peerInfo["socketId"], m: jwe });
+    console.log(`DIDConnectedMessage sent to ${agent.peerInfo["socketId"]}`);
 }
 
 export async function sendDIDAuthFailedMessage(
     mnemonic: string,
     did: string,
-    client: InfraDIDCommSocketClient,
+    agent: InfraDIDCommAgent,
     context?: any, // Assumix`ng an appropriate interface/type for the context
 ): Promise<void> {
     const currentTime = Math.floor(Date.now() / 1000);
     const id = uuidv4();
-    if (client.peerInfo.hasOwnProperty("did")) {
-        const receiverDID = client.peerInfo["did"];
-        const receiverSocketId = client.peerInfo["socketId"];
+    if (agent.peerInfo.hasOwnProperty("did")) {
+        const receiverDID = agent.peerInfo["did"];
+        const receiverSocketId = agent.peerInfo["socketId"];
 
         const didAuthFailedMessage = new DIDAuthFailedMessage(
             id,
@@ -294,7 +292,7 @@ export async function sendDIDAuthFailedMessage(
             receiverDID,
         );
 
-        client.socket.emit("message", { to: receiverSocketId, m: jwe });
+        agent.socket.emit("message", { to: receiverSocketId, m: jwe });
         console.log(`DIDAuthFailedMessage sent to ${receiverSocketId}`);
     }
 }
@@ -333,7 +331,7 @@ async function createEncryptedJWE(
         privateKeyfromX25519Jwk(senderPrivateKeyX25519JWK),
         publicKeyfromX25519Jwk(x25519JwkPublicKey),
     );
-    const jwe = await encryptJWE(jws, jwkFromSharedKey(sharedKey));
+    const jwe = await compactJWE(jws, jwkFromSharedKey(sharedKey));
 
     return jwe;
 }

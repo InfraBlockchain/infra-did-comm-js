@@ -1,16 +1,18 @@
-import { DIDAuthInitMessage, DIDConnectRequestMessage } from "@src/messages";
-import { Context, Initiator } from "@src/messages/commons";
-import { io, Socket } from "socket.io-client";
+import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
+import {
+    DIDAuthInitMessage,
+    DIDConnectRequestMessage,
+} from "../../src/messages";
+import { Context, Initiator } from "../../src/messages/commons";
+import { didConnectRequest } from "./dynamic-qr";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
 } from "./message-handler";
 
-export { InfraDIDCommSocketClient };
-
-class InfraDIDCommSocketClient {
+export class InfraDIDCommAgent {
     did: string;
     mnemonic: string;
     role: string = "HOLDER";
@@ -23,7 +25,6 @@ class InfraDIDCommSocketClient {
     isReceivedDIDAuthInit: boolean = false;
 
     /* eslint-disable @typescript-eslint/no-unused-vars */
-    didAuthInitCallback: (peerDID: string) => boolean = peerDID => true;
     didAuthCallback: (peerDID: string) => boolean = peerDID => true;
     didConnectedCallback: (peerDID: string) => void = peerDID => {};
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
@@ -88,10 +89,6 @@ class InfraDIDCommSocketClient {
         });
     }
 
-    setDIDAuthInitCallback(callback: (peerDID: string) => boolean): void {
-        this.didAuthInitCallback = callback;
-    }
-
     setDIDAuthCallback(callback: (peerDID: string) => boolean): void {
         this.didAuthCallback = callback;
     }
@@ -104,14 +101,44 @@ class InfraDIDCommSocketClient {
         this.didAuthFailedCallback = callback;
     }
 
+    init(): void {
+        this.onMessage();
+        this.socket.connect();
+    }
+
+    initFromConnectRequest(encoded: string): void {
+        this.onMessage();
+        this.socket.connect();
+        this.sendDIDAuthInitMessage(encoded);
+    }
+
+    initFromStaticConnectRequest(): void {
+        this.onMessage();
+        this.socket.connect();
+        // TODO: Implement static connect request
+    }
+
+    initWithConnectRequest(
+        context: Context,
+        timeout: number,
+        callback: (message: string) => void,
+    ): void {
+        this.onMessage();
+        didConnectRequest(this, context, timeout, callback);
+    }
+
+    reset(): void {
+        this.peerInfo = {};
+        this.isDIDConnected = false;
+        this.isReceivedDIDAuthInit = false;
+    }
+
     connect(): void {
         this.socket.connect();
     }
 
     disconnect(): void {
-        this.peerInfo = {};
-        this.isDIDConnected = false;
-        this.isReceivedDIDAuthInit = false;
+        this.reset();
         this.socket.disconnect();
     }
 
@@ -122,7 +149,6 @@ class InfraDIDCommSocketClient {
                 this.mnemonic,
                 this.did,
                 this,
-                this.didAuthInitCallback,
                 this.didAuthCallback,
                 this.didConnectedCallback,
                 this.didAuthFailedCallback,
@@ -132,7 +158,7 @@ class InfraDIDCommSocketClient {
 
     async sendDIDAuthInitMessage(encoded: string): Promise<void> {
         const didConnectRequestMessage =
-            await DIDConnectRequestMessage.decode(encoded);
+            DIDConnectRequestMessage.decode(encoded);
 
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
