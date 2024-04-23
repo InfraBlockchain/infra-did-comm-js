@@ -5,6 +5,7 @@
     "source": "src/index.ts",
     "main": "dist/src/index.js",
     "module": "dist/src/index.modern.js",
+    "type": "module",
     "types": "dist/src/index.d.ts",
     "repository": {
         "type": "git",
