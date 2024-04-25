@@ -5,16 +5,16 @@ import {
 } from "../../src/messages/did-connect-request";
 import { InfraDIDCommAgent } from "../../src/websocket";
 
-export function didAuthCallback(peerDID: string): boolean {
+function didAuthCallback(peerDID: string): boolean {
     console.log("DID Auth Callback", peerDID);
     return true;
 }
 
-export function didConnectedCallback(peerDID: string): void {
+function didConnectedCallback(peerDID: string): void {
     console.log("DID Connected Callback", peerDID);
 }
 
-export function didAuthFailedCallback(peerDID: string): void {
+function didAuthFailedCallback(peerDID: string): void {
     console.log("DID Auth Failed Callback", peerDID);
 }
 
@@ -77,7 +77,7 @@ export async function receiveConnectionInitiatedByVerifier(): Promise<void> {
     const socketId = await agent.socketId;
 
     if (socketId) {
-        const verifierSocketId = "dYpPp0XNGWKQ-VDaAAu7";
+        const verifierSocketId = "8HMrnfkUEQ8kj0CXACTN";
         const minimalCompactJson = {
             from: did,
             body: {

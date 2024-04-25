@@ -7,7 +7,7 @@ async function dynamic_qr_works() {
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
     const client = new InfraDIDCommAgent(
-        "http://0.0.0.0:8000",
+        "http://data-market.test.newnal.com:9000",
         did,
         mnemonic,
         "VERIFIER",

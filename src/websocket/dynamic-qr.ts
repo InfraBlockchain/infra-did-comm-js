@@ -20,29 +20,22 @@ export async function didConnectRequest(
     callback: (message: string) => void,
 ) {
     while (!agent.isReceivedDIDAuthInit) {
-        // Disconnect and reconnect the agent with a brief pause in between
         await sleep(100);
         agent.disconnect();
         await sleep(100);
         agent.connect();
 
-        // Calculate the current time in seconds
         const currentTime = Math.floor(Date.now() / 1000);
-        // Introduce a short delay before proceeding
         await sleep(500);
 
-        // Create a new DID connect request message
         const message = await agent.createConnectRequestMessage(
             currentTime,
             timeout,
             context,
         );
-        // Encode the message with the specified compression level
         const encodedMessage = message.encode(CompressionLevel.RAW);
-        // Invoke the callback with the encoded message
         callback(encodedMessage);
 
-        // Wait for the specified timeout before the next iteration
         await sleep(timeout * 1000);
     }
 }

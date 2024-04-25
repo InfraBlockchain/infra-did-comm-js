@@ -59,16 +59,26 @@ export async function decryptJWE(
     compactJWE: string,
     key: Record<string, any>,
 ): Promise<string> {
-    const keyJWK = await importJWK(key as jose.JWK);
-    const splitCompactJWE = compactJWE.split(".");
-    const protectedHeader = JSON.parse(base64url.decode(splitCompactJWE[0]));
-    protectedHeader["alg"] = "dir";
-    splitCompactJWE[0] = base64url.encode(JSON.stringify(protectedHeader));
-    const aggregatedCompactJWE = splitCompactJWE.join(".");
+    try {
+        const keyJWK = await importJWK(key as jose.JWK);
+        const splitCompactJWE = compactJWE.split(".");
+        const protectedHeader = JSON.parse(
+            base64url.decode(splitCompactJWE[0]),
+        );
 
-    const { plaintext } = await compactDecrypt(aggregatedCompactJWE, keyJWK);
+        protectedHeader["alg"] = "dir";
+        splitCompactJWE[0] = base64url.encode(JSON.stringify(protectedHeader));
+        const aggregatedCompactJWE = splitCompactJWE.join(".");
 
-    return Buffer.from(plaintext).toString();
+        const { plaintext } = await compactDecrypt(
+            aggregatedCompactJWE,
+            keyJWK,
+        );
+
+        return Buffer.from(plaintext).toString();
+    } catch (error) {
+        console.log("Error in decryptJWE: ", error);
+    }
 }
 
 /**

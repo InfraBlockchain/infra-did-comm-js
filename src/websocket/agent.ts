@@ -1,4 +1,4 @@
-import { io,Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -66,11 +66,10 @@ export class InfraDIDCommAgent {
         timeOut: number,
         context: Context,
     ): Promise<DIDConnectRequestMessage> {
-        const socketId = await this.socketId;
         const initiator = new Initiator({
             type: this.role,
             serviceEndpoint: this.url,
-            socketId,
+            socketId: this.socket.id,
         });
         const expiredTime: number = currentTime + timeOut;
         return new DIDConnectRequestMessage(
@@ -157,35 +156,41 @@ export class InfraDIDCommAgent {
     }
 
     async sendDIDAuthInitMessage(encoded: string): Promise<void> {
-        const didConnectRequestMessage =
-            DIDConnectRequestMessage.decode(encoded);
+        try {
+            const didConnectRequestMessage =
+                DIDConnectRequestMessage.decode(encoded);
 
-        const currentTime = Math.floor(Date.now() / 1000);
-        const id = uuidv4();
+            const currentTime = Math.floor(Date.now() / 1000);
+            const id = uuidv4();
 
-        const receiverDID = didConnectRequestMessage.from;
-        const peerSocketId = didConnectRequestMessage.body.initiator.socketId;
+            const receiverDID = didConnectRequestMessage.from;
+            const peerSocketId =
+                didConnectRequestMessage.body.initiator.socketId;
 
-        const didAuthInitMessage = new DIDAuthInitMessage(
-            id,
-            this.did,
-            [receiverDID],
-            currentTime,
-            currentTime + 30000,
-            didConnectRequestMessage.body.context,
-            this.socket.id,
-            peerSocketId,
-        );
+            const didAuthInitMessage = new DIDAuthInitMessage(
+                id,
+                this.did,
+                [receiverDID],
+                currentTime,
+                currentTime + 30000,
+                didConnectRequestMessage.body.context,
+                this.socket.id,
+                peerSocketId,
+            );
+            const message = await sendDIDAuthInitMessageToReceiver(
+                didAuthInitMessage,
+                this.mnemonic,
+                receiverDID,
+                this,
+            );
 
-        const message = await sendDIDAuthInitMessageToReceiver(
-            didAuthInitMessage,
-            this.mnemonic,
-            receiverDID,
-            this,
-        );
-
-        this.peerInfo = { did: receiverDID, socketId: peerSocketId };
-        this.socket.emit("message", { to: peerSocketId, m: message });
-        console.log(`DIDAuthInitMessage sent to ${peerSocketId}`);
+            this.peerInfo = { did: receiverDID, socketId: peerSocketId };
+            this.socket.emit("message", { to: peerSocketId, m: message });
+            console.log(
+                `DIDAuthInitMessage sent to ${peerSocketId}, message: ${message}`,
+            );
+        } catch (error) {
+            console.error("Failed to sendDIDAuthInitMessage", error);
+        }
     }
 }
