@@ -13,7 +13,7 @@ import { InfraDIDCommAgent } from "../../src/websocket/index";
  * @param {number} timeout - The timeout in seconds for the connect request. Also used as a delay before the next iteration.
  * @param {(message: string) => void} callback - A callback function that is called with the encoded connect request message.
  */
-export async function didConnectRequest(
+export async function dynamicConnectRequest(
     agent: InfraDIDCommAgent,
     context: Context,
     timeout: number,

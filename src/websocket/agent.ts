@@ -6,7 +6,7 @@ import {
     DIDConnectRequestMessage,
 } from "../../src/messages";
 import { Context, Initiator } from "../../src/messages/commons";
-import { didConnectRequest } from "./dynamic-qr";
+import { dynamicConnectRequest } from "./dynamic-qr";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
@@ -105,25 +105,25 @@ export class InfraDIDCommAgent {
         this.socket.connect();
     }
 
-    initFromConnectRequest(encoded: string): void {
+    initReceivingConnectRequest(encoded: string): void {
         this.onMessage();
         this.socket.connect();
         this.sendDIDAuthInitMessage(encoded);
     }
 
-    initFromStaticConnectRequest(): void {
+    initReceivingStaticConnectRequest(): void {
         this.onMessage();
         this.socket.connect();
         // TODO: Implement static connect request
     }
 
-    initWithConnectRequest(
+    initCreatingDynamicConnectRequest(
         context: Context,
         timeout: number,
         callback: (message: string) => void,
     ): void {
         this.onMessage();
-        didConnectRequest(this, context, timeout, callback);
+        dynamicConnectRequest(this, context, timeout, callback);
     }
 
     reset(): void {

@@ -32,7 +32,7 @@ There are three methods to create DID-Connect-Request Message
 ```javascript
 const socketId: string = socketId;
 
-// 1) didConnectRequestMessage from General json
+// 1) didConnectRequestMessage from json
 const json = {
     from: did,
     body: {
@@ -49,7 +49,7 @@ const json = {
 const didConnectRequestMessage =
     DIDConnectRequestMessage.fromJSON(json);
 
-// 2) didConnectRequestMessage from Compact
+// 2) didConnectRequestMessage from compactJSON
 const compactJson = {
     from: did,
     body: {
@@ -66,7 +66,7 @@ const compactJson = {
 const didConnectRequestMessageFromCompact =
     DIDConnectRequestMessage.fromJSON(compactJson);
 
-// 3) didConnectRequestMessage from minimalCompactJson
+// 3) didConnectRequestMessage from minimalCompactJSON
 const minimalCompactJson = {
     from: did,
     body: {
@@ -158,16 +158,16 @@ const didAuthFailedMessage = new DIDAuthFailedMessage(
 ### Sign / Verify JWS
 
 ```javascript
-const jws = await compactJWS(
-    payload,
-    CryptoHelper.jwk2KeyObject(JWK, "private"),
-    {
-        typ: "JWM",
-        alg: "EdDSA",
-    },
-);
+const privateKey = privateKeyFromMnemonic(mnemonic);
+const publicKey = publicKeyFromMnemonic(mnemonic);
+const JWK = key2JWK("Ed25519", publicKey, privateKey);
 
-var payload = verifyJWS(token, publicKey);
+const jws = await compactJWS(payload, JWK, {
+    typ: "JWM",
+    alg: "EdDSA",
+});
+
+var payload = verifyJWS(jws, publicKey);
 ```
 
 ### Encrypt / Decrypt JWE
@@ -185,7 +185,7 @@ const sharedKey = deriveSharedKey(
 
 const jwe = await compactJWE(
     payload,
-    await exportJWK(sharedKey),
+    await jose.exportJWK(sharedKey),
     x25519JwkFromX25519PublicKey(ephemeralPublicKey),
 );
 ```
@@ -193,6 +193,7 @@ const jwe = await compactJWE(
 -   Without epk
 
 ```javascript
+const x25519JwkPublicKey = x25519JwkFromEd25519PublicKey(publicKey);
 const senderPrivateKeyX25519JWK = x25519JwkFromMnemonic(mnemonic);
 const sharedKey = deriveSharedKey(
     privateKeyfromX25519Jwk(senderPrivateKeyX25519JWK),
@@ -224,11 +225,11 @@ const { ephemeralPrivateKey1, ephemeralPublicKey1 } =
 const { ephemeralPrivateKey2, ephemeralPublicKey2 } =
     generateX25519EphemeralKeyPair();
 
-const sharedKey2 = deriveSharedKey(ephemeralPrivateKey1, ephemeralPublicKey2);
+const sharedKey1 = deriveSharedKey(ephemeralPrivateKey1, ephemeralPublicKey2);
 const sharedKey2 = deriveSharedKey(ephemeralPrivateKey2, ephemeralPublicKey1);
 ```
 
-### Connect to Websocket Server
+### Connect to Websocket Server with Receiving Connect Request Message
 
 Check [example](./examples/websocket) for more detail.
 
@@ -242,15 +243,15 @@ const agent = new InfraDIDCommAgent(
     mnemonic,
     "HOLDER",
 );
+const encoded = "connectRequestMessageCreatedByPeer";
 
 agent.setDIDAuthCallback(didAuthCallback);
 agent.setDIDConnectedCallback(didConnectedCallback);
 agent.setDIDAuthFailedCallback(didAuthFailedCallback);
-
-agent.init();
+agent.initReceivingConnectRequest(encoded);
 ```
 
-### Make Dynamic QR Code
+### Connect to Websocket Server with Creating Connect Request Message
 
 ```javascript
 const mnemonic =
@@ -266,6 +267,5 @@ const agent = new InfraDIDCommAgent(
 agent.setDIDAuthCallback(didAuthCallback);
 agent.setDIDConnectedCallback(didConnectedCallback);
 agent.setDIDAuthFailedCallback(didAuthFailedCallback);
-
-agent.initWithConnectRequest();
+agent.initCreatingDynamicConnectRequest(context, 30, setConnectRequestCallback);
 ```
