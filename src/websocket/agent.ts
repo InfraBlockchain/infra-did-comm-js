@@ -190,7 +190,7 @@ export class InfraDIDCommAgent {
                 `DIDAuthInitMessage sent to ${peerSocketId}, message: ${message}`,
             );
         } catch (error) {
-            console.error("Failed to sendDIDAuthInitMessage", error);
+            throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
         }
     }
 }

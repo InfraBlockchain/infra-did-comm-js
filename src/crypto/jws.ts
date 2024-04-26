@@ -1,7 +1,7 @@
 import base64url from "base64url";
 import { KeyObject } from "crypto";
-import * as jose from "jose";
-import { jwtVerify } from "jose";
+
+import { jose, joseOriginal } from "../index";
 
 /**
  * Signs the provided payload using the given private key and protected header,
@@ -14,12 +14,13 @@ import { jwtVerify } from "jose";
  */
 export async function compactJWS(
     payload: Uint8Array,
-    privateKey: jose.KeyLike | Uint8Array,
-    protectedHeader: jose.CompactJWSHeaderParameters,
+    key: Record<string, any>,
+    protectedHeader: joseOriginal.CompactJWSHeaderParameters,
 ): Promise<string> {
+    const keyLike = await jose.importJWK(key as joseOriginal.JWK);
     return new jose.CompactSign(payload)
         .setProtectedHeader(protectedHeader)
-        .sign(privateKey);
+        .sign(keyLike);
 }
 
 /**
@@ -32,15 +33,24 @@ export async function compactJWS(
  */
 export async function verifyJWS(
     jws: string,
-    publicKey: KeyObject,
-): Promise<object> {
+    key: Record<string, any>,
+): Promise<Record<string, any>> {
     try {
-        const { payload } = await jwtVerify(jws, publicKey, {
-            algorithms: ["EdDSA"],
-        });
-        return payload;
+        const keyLike = await jose.importJWK(key);
+        const { payload } = await jose.compactVerify(
+            jws,
+            keyLike as KeyObject,
+            {
+                algorithms: ["EdDSA"],
+            },
+        );
+
+        const decodedPayload = new TextDecoder().decode(payload);
+        const jsonPayload = JSON.parse(decodedPayload);
+
+        return jsonPayload;
     } catch (error) {
-        console.error(error);
+        throw new Error(`Error in verifyJWS: ${error}`);
     }
 }
 

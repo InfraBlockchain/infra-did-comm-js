@@ -2180,6 +2180,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/ed25519@npm:^1.6.1":
+  version: 1.7.3
+  resolution: "@noble/ed25519@npm:1.7.3"
+  checksum: 10/48d389a36ec5222366b477a22cfe33dc3837044b58232d99b3fff8ee8aba90877b8153eb60dd436869004f85c6101e8c907f17a48d818d218b4efecee1817237
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.2.0":
   version: 1.2.0
   resolution: "@noble/hashes@npm:1.2.0"
@@ -7712,6 +7719,7 @@ __metadata:
     "@types/uuid": "npm:^9"
     "@typescript-eslint/eslint-plugin": "npm:^7.0.2"
     "@typescript-eslint/parser": "npm:^7.0.2"
+    base64url: "npm:^3.0.1"
     buffer-browserify: "npm:^0.2.5"
     crypto-browserify: "npm:^3.12.0"
     eslint: "npm:^8.5.7"
@@ -7724,6 +7732,7 @@ __metadata:
     infra-did-js: "npm:^1.1.0"
     jest: "npm:29.7.0"
     jose: "npm:^5.2.4"
+    jose-browser: "npm:^0.0.1-rc5"
     jsonwebtoken: "npm:^9.0.2"
     lint-staged: "npm:^15.2.2"
     microbundle: "npm:^0.15.1"
@@ -8791,6 +8800,17 @@ __metadata:
   bin:
     jiti: bin/jiti.js
   checksum: 10/005a0239e50381b5c9919f59dbab86128367bd64872f3376dbbde54b6523f41bd134bf22909e2a509e38fd87e1c22125ca255b9b6b53e7df0fedd23f737334cc
+  languageName: node
+  linkType: hard
+
+"jose-browser@npm:^0.0.1-rc5":
+  version: 0.0.1-rc5
+  resolution: "jose-browser@npm:0.0.1-rc5"
+  dependencies:
+    "@noble/ed25519": "npm:^1.6.1"
+  peerDependencies:
+    jose: "*"
+  checksum: 10/793e161d87838785e9b175afc3aea9df8771b3e59103148f657f7e63abd96ddc3dd8b487e01f633971dbb8b9b63ed8145e873ba172d6e2a4ac4111eee3861550
   languageName: node
   linkType: hard
 

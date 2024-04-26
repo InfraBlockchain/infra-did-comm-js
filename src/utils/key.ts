@@ -1,11 +1,10 @@
 import { generateKeyPair, sharedKey } from "@stablelib/x25519";
 import base64url from "base64url";
 import { CryptoHelper, PrivateJwk_ED, PublicJwk_ED } from "infra-did-js";
-import { base64url as joseBase64Url,JWK } from "jose";
 
+import { joseOriginal } from "../index";
 import { escape } from "./coding";
 import { privateKeyFromMnemonic, publicKeyFromMnemonic } from "./key_convert";
-
 /**
  * Represents an ephemeral key pair.
  */
@@ -41,7 +40,9 @@ export function deriveSharedKey(
  * @param publicKey - The X25519 public key.
  * @returns The JWK representation of the X25519 public key.
  */
-export function x25519JwkFromX25519PublicKey(publicKey: Uint8Array): JWK {
+export function x25519JwkFromX25519PublicKey(
+    publicKey: Uint8Array,
+): joseOriginal.JWK {
     return {
         kty: "OKP",
         crv: "X25519",
@@ -54,7 +55,9 @@ export function x25519JwkFromX25519PublicKey(publicKey: Uint8Array): JWK {
  * @param publicKey - The Ed25519 public key.
  * @returns The X25519 JWK representation of the Ed25519 public key.
  */
-export function x25519JwkFromEd25519PublicKey(publicKey: Uint8Array): JWK {
+export function x25519JwkFromEd25519PublicKey(
+    publicKey: Uint8Array,
+): joseOriginal.JWK {
     const x25519PublicKey = CryptoHelper.edToX25519Pk(
         publicKey,
         "u8a",
@@ -71,7 +74,7 @@ export function x25519JwkFromEd25519PublicKey(publicKey: Uint8Array): JWK {
  * @param mnemonic - The mnemonic.
  * @returns The X25519 JWK representation of the mnemonic.
  */
-export function x25519JwkFromMnemonic(mnemonic: string): JWK {
+export function x25519JwkFromMnemonic(mnemonic: string): joseOriginal.JWK {
     const publicKeyED25519 = publicKeyFromMnemonic(mnemonic);
     const privateKeyED25519 = privateKeyFromMnemonic(mnemonic);
 
@@ -98,10 +101,10 @@ export function x25519JwkFromMnemonic(mnemonic: string): JWK {
  * @param sharedKey - The shared key.
  * @returns The JWK representation of the shared key.
  */
-export function jwkFromSharedKey(sharedKey: Uint8Array): JWK {
+export function jwkFromSharedKey(sharedKey: Uint8Array): joseOriginal.JWK {
     return {
         kty: "oct",
-        k: joseBase64Url.encode(Buffer.from(sharedKey)),
+        k: joseOriginal.base64url.encode(Buffer.from(sharedKey)),
         alg: "A256GCM",
     };
 }
@@ -111,8 +114,8 @@ export function jwkFromSharedKey(sharedKey: Uint8Array): JWK {
  * @param jwk - The X25519 JWK representation.
  * @returns The public key.
  */
-export function publicKeyfromX25519Jwk(jwk: JWK): Uint8Array {
-    return joseBase64Url.decode(jwk["x"]);
+export function publicKeyfromX25519Jwk(jwk: joseOriginal.JWK): Uint8Array {
+    return joseOriginal.base64url.decode(jwk["x"]);
 }
 
 /**
@@ -120,8 +123,8 @@ export function publicKeyfromX25519Jwk(jwk: JWK): Uint8Array {
  * @param jwk - The X25519 JWK representation.
  * @returns The private key.
  */
-export function privateKeyfromX25519Jwk(jwk: JWK): Uint8Array {
-    return joseBase64Url.decode(jwk["d"]);
+export function privateKeyfromX25519Jwk(jwk: joseOriginal.JWK): Uint8Array {
+    return joseOriginal.base64url.decode(jwk["d"]);
 }
 
 /**

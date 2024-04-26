@@ -1,5 +1,3 @@
-import { KeyObject } from "crypto";
-import { exportJWK, importJWK } from "jose";
 import { Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,6 +9,7 @@ import {
     extractJWEHeader,
     verifyJWS,
 } from "../crypto";
+import { jose } from "../index";
 import {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
@@ -58,7 +57,7 @@ export async function messageHandler(
             );
             const jwsFromJwe = await decryptJWE(
                 jwe,
-                await exportJWK(sharedKey),
+                await jose.exportJWK(sharedKey),
             );
 
             const payload = decodeJWS(jwsFromJwe);
@@ -66,9 +65,8 @@ export async function messageHandler(
             const fromAddress = fromDID.split(":").pop();
             const fromPublicKey = publicKeyFromAddress(fromAddress);
             const JWK = key2JWK("Ed25519", fromPublicKey);
-            const keyJWK = (await importJWK(JWK, "EdDSA")) as KeyObject;
 
-            const verifiedPayload = await verifyJWS(jwsFromJwe, keyJWK);
+            const verifiedPayload = await verifyJWS(jwsFromJwe, JWK);
             agent.peerInfo = {
                 did: verifiedPayload["from"],
                 socketId: verifiedPayload["body"]["socketId"],
@@ -91,16 +89,15 @@ export async function messageHandler(
 
                 const jwsFromJwe = await decryptJWE(
                     jwe,
-                    await exportJWK(sharedKey),
+                    await jose.exportJWK(sharedKey),
                 );
 
                 const JWK = key2JWK("Ed25519", fromPublicKey);
-                const keyJWK = (await importJWK(JWK, "EdDSA")) as KeyObject;
-                const jwsPayload = await verifyJWS(jwsFromJwe, keyJWK);
+                const jwsPayload = await verifyJWS(jwsFromJwe, JWK);
 
                 if (jwsPayload["type"] === "DIDAuth") {
                     console.log("DIDAuth Message Received");
-                    didAuthCallback?.(fromDID);
+                    didAuthCallback(fromDID);
                     sendDIDConnectedMessageFromDIDAuthMessage(
                         mnemonic,
                         jwsPayload,
@@ -108,7 +105,7 @@ export async function messageHandler(
                     );
                 } else if (jwsPayload["type"] === "DIDConnected") {
                     console.log("DIDConnected Message Received");
-                    didConnectedCallback?.(fromDID);
+                    didConnectedCallback(fromDID);
                     agent.isDIDConnected = true;
                     if (agent.role === "VERIFIER") {
                         sendDIDConnectedMessageFromDIDConnectedMessage(
@@ -118,17 +115,17 @@ export async function messageHandler(
                         );
                     }
                 } else if (jwsPayload["type"] === "DIDAuthFailed") {
-                    didAuthFailedCallback?.(fromDID);
+                    didAuthFailedCallback(fromDID);
                     console.log("DIDAuthFailed Message Received");
                     agent.disconnect();
                 }
             }
         }
     } catch (e) {
-        console.error("failed to handle the message: ", e);
         Object.keys(agent.peerInfo).forEach(key => delete agent.peerInfo[key]);
         sendDIDAuthFailedMessage(mnemonic, did, agent);
         agent.disconnect();
+        throw new Error(`failed to handle the message: ${e}`);
     }
 }
 
@@ -154,8 +151,7 @@ export async function sendDIDAuthInitMessageToReceiver(
             socketId: message.body.peerSocketId,
         };
 
-        const keyJWK = await importJWK(JWK, "EdDSA");
-        const jws = await compactJWS(payload, keyJWK as KeyObject, {
+        const jws = await compactJWS(payload, JWK, {
             typ: "JWM",
             alg: "EdDSA",
         });
@@ -171,7 +167,7 @@ export async function sendDIDAuthInitMessageToReceiver(
 
         const jwe = await compactJWE(
             jws,
-            await exportJWK(sharedKey),
+            await jose.exportJWK(sharedKey),
             x25519JwkFromX25519PublicKey(ephemeralPublicKey),
         );
 
@@ -352,9 +348,7 @@ async function createEncryptedJWE(
             x25519JwkFromEd25519PublicKey(receiverPublicKey);
         const JWK = key2JWK("Ed25519", senderPublicKey, senderPrivateKey);
 
-        const keyJWK = await importJWK(JWK, "EdDSA");
-
-        const jws = await compactJWS(payload, keyJWK as KeyObject, {
+        const jws = await compactJWS(payload, JWK, {
             typ: "JWM",
             alg: "EdDSA",
         });

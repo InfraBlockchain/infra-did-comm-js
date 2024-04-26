@@ -1,11 +1,6 @@
 import base64url from "base64url";
-import * as jose from "jose";
-import {
-    compactDecrypt,
-    CompactEncrypt,
-    decodeProtectedHeader,
-    importJWK,
-} from "jose";
+
+import { jose, joseOriginal } from "../index";
 
 /**
  * Encrypts the given plaintext using the provided key and optional ephemeral public key.
@@ -19,17 +14,17 @@ export async function compactJWE(
     key: Record<string, any>,
     epk?: Record<string, any>,
 ): Promise<string> {
-    const keyJWK = await importJWK(key as jose.JWK);
+    const keyLike = await jose.importJWK(key as joseOriginal.JWK);
     const plaintextU8A = new TextEncoder().encode(plaintext);
 
     if (epk != null) {
-        const compactJWE = await new CompactEncrypt(plaintextU8A)
+        const compactJWE = await new jose.CompactEncrypt(plaintextU8A)
             .setProtectedHeader({
                 alg: "dir",
                 enc: "A256GCM",
                 epk,
             })
-            .encrypt(keyJWK);
+            .encrypt(keyLike);
 
         const splitCompactJWE = compactJWE.split(".");
         const protectedHeader = JSON.parse(
@@ -41,9 +36,9 @@ export async function compactJWE(
 
         return aggregatedCompactJWE;
     } else {
-        const compactJWE = await new CompactEncrypt(Buffer.from(plaintext))
+        const compactJWE = await new jose.CompactEncrypt(Buffer.from(plaintext))
             .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
-            .encrypt(keyJWK);
+            .encrypt(keyLike);
 
         return compactJWE;
     }
@@ -60,7 +55,7 @@ export async function decryptJWE(
     key: Record<string, any>,
 ): Promise<string> {
     try {
-        const keyJWK = await importJWK(key as jose.JWK);
+        const keyLike = await jose.importJWK(key);
         const splitCompactJWE = compactJWE.split(".");
         const protectedHeader = JSON.parse(
             base64url.decode(splitCompactJWE[0]),
@@ -70,9 +65,9 @@ export async function decryptJWE(
         splitCompactJWE[0] = base64url.encode(JSON.stringify(protectedHeader));
         const aggregatedCompactJWE = splitCompactJWE.join(".");
 
-        const { plaintext } = await compactDecrypt(
+        const { plaintext } = await jose.compactDecrypt(
             aggregatedCompactJWE,
-            keyJWK,
+            keyLike,
         );
 
         return Buffer.from(plaintext).toString();
@@ -88,7 +83,7 @@ export async function decryptJWE(
  */
 export function extractJWEHeader(jweCompact: string): object {
     try {
-        return decodeProtectedHeader(jweCompact);
+        return jose.decodeProtectedHeader(jweCompact);
     } catch (error) {
         // In case of not ECDH-ES, return the 'dir' header
         return { alg: "dir" };

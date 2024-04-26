@@ -81,6 +81,7 @@
         "crypto-browserify": "^3.12.0",
         "infra-did-js": "^1.1.0",
         "jose": "^5.2.4",
+        "jose-browser": "^0.0.1-rc5",
         "jsonwebtoken": "^9.0.2",
         "socket.io": "^4.7.5",
         "socket.io-client": "^4.7.5",
