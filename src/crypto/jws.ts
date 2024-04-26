@@ -1,7 +1,7 @@
 import base64url from "base64url";
 import { KeyObject } from "crypto";
 
-import { jose, joseOriginal } from "../index";
+import { jose, joseOriginal } from "../jose-config";
 
 /**
  * Signs the provided payload using the given private key and protected header,

@@ -1,6 +1,6 @@
 import base64url from "base64url";
 
-import { jose, joseOriginal } from "../index";
+import { jose, joseOriginal } from "../jose-config";
 
 /**
  * Encrypts the given plaintext using the provided key and optional ephemeral public key.

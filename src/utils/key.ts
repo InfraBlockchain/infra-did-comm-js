@@ -2,7 +2,7 @@ import { generateKeyPair, sharedKey } from "@stablelib/x25519";
 import base64url from "base64url";
 import { CryptoHelper, PrivateJwk_ED, PublicJwk_ED } from "infra-did-js";
 
-import { joseOriginal } from "../index";
+import { joseOriginal } from "../jose-config";
 import { escape } from "./coding";
 import { privateKeyFromMnemonic, publicKeyFromMnemonic } from "./key_convert";
 /**

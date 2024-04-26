@@ -77,7 +77,7 @@ export async function receiveConnectionInitiatedByVerifier(): Promise<void> {
     const socketId = await agent.socketId;
 
     if (socketId) {
-        const verifierSocketId = "x0rvaCKqZbbcYFWFACcj";
+        const verifierSocketId = "ggy2HVSRGNS2hYflACc5";
         const minimalCompactJson = {
             from: did,
             body: {

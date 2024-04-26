@@ -9,7 +9,7 @@ import {
     extractJWEHeader,
     verifyJWS,
 } from "../crypto";
-import { jose } from "../index";
+import { jose } from "../jose-config";
 import {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
