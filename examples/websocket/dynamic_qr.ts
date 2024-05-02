@@ -1,5 +1,5 @@
 import { Context } from "../../src/messages/commons";
-import { dynamicConnectRequest } from "../../src/websocket/dynamic-qr";
+import { connectRequestDynamic } from "../../src/websocket/connect-request";
 import { InfraDIDCommAgent } from "../../src/websocket/index";
 
 async function dynamic_qr_works() {
@@ -13,7 +13,7 @@ async function dynamic_qr_works() {
         "VERIFIER",
     );
     const context = new Context("newnal", "connect");
-    await dynamicConnectRequest(client, context, 2, message => {
+    await connectRequestDynamic(client, context, 2, message => {
         console.log(message);
     });
 }
