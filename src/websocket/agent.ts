@@ -61,6 +61,8 @@ export class InfraDIDCommAgent {
         });
 
         this.resetSocketIdPromise();
+
+        this.onMessage();
     }
 
     private resetSocketIdPromise(): void {
@@ -86,12 +88,10 @@ export class InfraDIDCommAgent {
     }
 
     init(): void {
-        this.onMessage();
         this.socket.connect();
     }
 
     async initReceivingConnectRequest(encoded: string): Promise<void> {
-        this.onMessage();
         this.socket.connect();
         await this.sendDIDAuthInitMessage(encoded);
     }
@@ -101,8 +101,6 @@ export class InfraDIDCommAgent {
         context: Context,
         verifierDID?: string,
     ): Promise<void> {
-        this.onMessage();
-        this.socket.connect();
         await connectRequestStatic(this, serviceEndpoint, context, verifierDID);
     }
 
@@ -111,7 +109,6 @@ export class InfraDIDCommAgent {
         timeout: number,
         callback: (message: string) => void,
     ): Promise<void> {
-        this.onMessage();
         await connectRequestDynamic(this, context, timeout, callback);
     }
 
