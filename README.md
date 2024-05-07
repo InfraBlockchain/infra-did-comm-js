@@ -14,6 +14,8 @@ Feature provided by infra-did-comm-js Library :
 -   Connect to Websocket Server
 -   Make Dynamic QR Code
 
+Please refer to the following repository for detailed protocol documents: [infra-did-comm](https://github.com/InfraBlockchain/infrablockchain-improvement-proposals/blob/main/docs/infra-did-comm/v0.5/docs.md)
+
 ## Installation
 
 ```sh

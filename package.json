@@ -76,6 +76,7 @@
         "@stablelib/base64": "^1.0.1",
         "@stablelib/ed25519": "^1.0.3",
         "@stablelib/x25519": "^1.0.3",
+        "axios": "^1.6.8",
         "base64url": "^3.0.1",
         "buffer-browserify": "^0.2.5",
         "crypto-browserify": "^3.12.0",

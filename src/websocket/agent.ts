@@ -5,8 +5,8 @@ import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
 } from "../../src/messages";
-import { Context, Initiator } from "../../src/messages/commons";
-import { dynamicConnectRequest } from "./dynamic-qr";
+import { Context } from "../../src/messages/commons";
+import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
@@ -22,12 +22,14 @@ export class InfraDIDCommAgent {
     peerInfo: { [key: string]: string } = {}; // Peers' info {did, socketId}
 
     isDIDConnected: boolean = false;
+    isDIDVerified: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
     /* eslint-disable @typescript-eslint/no-unused-vars */
     didAuthCallback: (peerDID: string) => boolean = peerDID => true;
     didConnectedCallback: (peerDID: string) => void = peerDID => {};
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
+    didVerifyCallback: (peerDID: string) => boolean = peerDID => true;
     /* eslint-enable @typescript-eslint/no-unused-vars */
 
     private _socketIdPromiseResolver: (value: string) => void;
@@ -59,27 +61,8 @@ export class InfraDIDCommAgent {
         });
 
         this.resetSocketIdPromise();
-    }
 
-    async createConnectRequestMessage(
-        currentTime: number,
-        timeOut: number,
-        context: Context,
-    ): Promise<DIDConnectRequestMessage> {
-        const initiator = new Initiator({
-            type: this.role,
-            serviceEndpoint: this.url,
-            socketId: this.socket.id,
-        });
-        const expiredTime: number = currentTime + timeOut;
-        return new DIDConnectRequestMessage(
-            "DIDConnectReq",
-            this.did,
-            currentTime,
-            expiredTime,
-            initiator,
-            context,
-        );
+        this.onMessage();
     }
 
     private resetSocketIdPromise(): void {
@@ -100,30 +83,33 @@ export class InfraDIDCommAgent {
         this.didAuthFailedCallback = callback;
     }
 
+    setDIDVerifyCallback(callback: (peerDID: string) => boolean): void {
+        this.didVerifyCallback = callback;
+    }
+
     init(): void {
-        this.onMessage();
         this.socket.connect();
     }
 
-    initReceivingConnectRequest(encoded: string): void {
-        this.onMessage();
+    async initReceivingConnectRequest(encoded: string): Promise<void> {
         this.socket.connect();
-        this.sendDIDAuthInitMessage(encoded);
+        await this.sendDIDAuthInitMessage(encoded);
     }
 
-    initReceivingStaticConnectRequest(): void {
-        this.onMessage();
-        this.socket.connect();
-        // TODO: Implement static connect request
+    async initReceivingStaticConnectRequest(
+        serviceEndpoint: string,
+        context: Context,
+        verifierDID?: string,
+    ): Promise<void> {
+        await connectRequestStatic(this, serviceEndpoint, context, verifierDID);
     }
 
-    initCreatingDynamicConnectRequest(
+    async initCreatingDynamicConnectRequest(
         context: Context,
         timeout: number,
         callback: (message: string) => void,
-    ): void {
-        this.onMessage();
-        dynamicConnectRequest(this, context, timeout, callback);
+    ): Promise<void> {
+        await connectRequestDynamic(this, context, timeout, callback);
     }
 
     reset(): void {
@@ -151,6 +137,7 @@ export class InfraDIDCommAgent {
                 this.didAuthCallback,
                 this.didConnectedCallback,
                 this.didAuthFailedCallback,
+                this.didVerifyCallback,
             );
         });
     }
@@ -167,6 +154,8 @@ export class InfraDIDCommAgent {
             const peerSocketId =
                 didConnectRequestMessage.body.initiator.socketId;
 
+            const mySocketId = await this.socketId;
+
             const didAuthInitMessage = new DIDAuthInitMessage(
                 id,
                 this.did,
@@ -174,7 +163,7 @@ export class InfraDIDCommAgent {
                 currentTime,
                 currentTime + 30000,
                 didConnectRequestMessage.body.context,
-                this.socket.id,
+                mySocketId,
                 peerSocketId,
             );
             const message = await sendDIDAuthInitMessageToReceiver(

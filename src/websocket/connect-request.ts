@@ -1,6 +1,8 @@
-import { CompressionLevel } from "../../src/messages";
-import { Context } from "../../src/messages/commons";
-import { InfraDIDCommAgent } from "../../src/websocket/index";
+import axios from "axios";
+
+import { CompressionLevel, DIDConnectRequestMessage } from "../messages";
+import { Context, Initiator } from "../messages/commons";
+import { InfraDIDCommAgent } from "./index";
 
 /**
  * Continuously attempts to establish a DID connection by sending connect request messages until a connection is established.
@@ -13,7 +15,7 @@ import { InfraDIDCommAgent } from "../../src/websocket/index";
  * @param {number} timeout - The timeout in seconds for the connect request. Also used as a delay before the next iteration.
  * @param {(message: string) => void} callback - A callback function that is called with the encoded connect request message.
  */
-export async function dynamicConnectRequest(
+export async function connectRequestDynamic(
     agent: InfraDIDCommAgent,
     context: Context,
     timeout: number,
@@ -28,9 +30,9 @@ export async function dynamicConnectRequest(
         const currentTime = Math.floor(Date.now() / 1000);
         await sleep(500);
 
-        const message = await agent.createConnectRequestMessage(
+        const message = await createConnectRequestMessage(
+            agent,
             currentTime,
-            timeout,
             context,
         );
         const encodedMessage = message.encode(CompressionLevel.RAW);
@@ -38,6 +40,57 @@ export async function dynamicConnectRequest(
 
         await sleep(timeout * 1000);
     }
+}
+
+export async function connectRequestStatic(
+    agent: InfraDIDCommAgent,
+    serviceEndpoint: string,
+    context: Context,
+    verifierDID?: string,
+) {
+    try {
+        agent.connect();
+
+        if (verifierDID) {
+            agent.didVerifyCallback(verifierDID);
+        }
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        await sleep(500);
+
+        const message = await createConnectRequestMessage(
+            agent,
+            currentTime,
+            context,
+        );
+        const encodedMessage = message.encode(CompressionLevel.RAW);
+
+        const url = `${serviceEndpoint}?data=${encodedMessage}`;
+        const response = await axios.get(url);
+        console.log("Static connect request response: ", response.data);
+    } catch (error) {
+        throw new Error(`Failed to connectRequestStatic: ${error}`);
+    }
+}
+
+export async function createConnectRequestMessage(
+    agent: InfraDIDCommAgent,
+    currentTime: number,
+    context: Context,
+): Promise<DIDConnectRequestMessage> {
+    const initiator = new Initiator({
+        type: agent.role,
+        serviceEndpoint: agent.url,
+        socketId: await agent.socketId,
+    });
+    return new DIDConnectRequestMessage(
+        "DIDConnectReq",
+        agent.did,
+        currentTime,
+        currentTime + 30000,
+        initiator,
+        context,
+    );
 }
 
 /**

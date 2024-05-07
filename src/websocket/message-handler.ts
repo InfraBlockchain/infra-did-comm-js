@@ -40,6 +40,7 @@ export async function messageHandler(
     didAuthCallback?: (peerDID: string) => boolean,
     didConnectedCallback?: (peerDID: string) => void,
     didAuthFailedCallback?: (peerDID: string) => void,
+    didVerifyCallback?: (peerDID: string) => boolean,
 ) {
     try {
         const header = extractJWEHeader(jwe);
@@ -65,6 +66,9 @@ export async function messageHandler(
             const fromAddress = fromDID.split(":").pop();
             const fromPublicKey = publicKeyFromAddress(fromAddress);
             const JWK = key2JWK("Ed25519", fromPublicKey);
+
+            didVerifyCallback(fromDID);
+            agent.isDIDVerified = true;
 
             const verifiedPayload = await verifyJWS(jwsFromJwe, JWK);
             agent.peerInfo = {
@@ -97,6 +101,8 @@ export async function messageHandler(
 
                 if (jwsPayload["type"] === "DIDAuth") {
                     console.log("DIDAuth Message Received");
+                    didVerifyCallback(fromDID);
+                    agent.isDIDVerified = true;
                     didAuthCallback(fromDID);
                     sendDIDConnectedMessageFromDIDAuthMessage(
                         mnemonic,
