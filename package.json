@@ -1,6 +1,6 @@
 {
     "name": "infra-did-comm-js",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Communication Protocol using Infra DID",
     "source": "src/index.ts",
     "main": "dist/src/index.cjs",
