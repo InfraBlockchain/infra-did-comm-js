@@ -1,4 +1,4 @@
-import { Context } from "./commons";
+import { Context } from "../commons";
 
 export class DIDAuthInitMessage {
     id: string;

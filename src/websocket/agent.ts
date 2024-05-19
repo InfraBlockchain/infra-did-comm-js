@@ -25,6 +25,9 @@ export class InfraDIDCommAgent {
     isDIDVerified: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
+    // TODO: change boolean into map
+    isVPRequested: boolean = false;
+
     /* eslint-disable @typescript-eslint/no-unused-vars */
     didAuthCallback: (peerDID: string) => boolean = peerDID => true;
     didConnectedCallback: (peerDID: string) => void = peerDID => {};

@@ -2,7 +2,7 @@
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
-} from "../../src/messages/did-connect-request";
+} from "../../src/messages/connect/did-connect-request";
 import { InfraDIDCommAgent } from "../../src/websocket";
 
 function didAuthCallback(peerDID: string): boolean {

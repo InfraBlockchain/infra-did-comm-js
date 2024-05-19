@@ -1,12 +1,12 @@
 import { Context, Initiator } from "./commons";
-import { DIDAuthMessage } from "./did-auth";
-import { DIDAuthFailedMessage } from "./did-auth-failed";
-import { DIDAuthInitMessage } from "./did-auth-init";
+import { DIDAuthMessage } from "./connect/did-auth";
+import { DIDAuthFailedMessage } from "./connect/did-auth-failed";
+import { DIDAuthInitMessage } from "./connect/did-auth-init";
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
-} from "./did-connect-request";
-import { DIDConnectedMessage } from "./did-connected";
+} from "./connect/did-connect-request";
+import { DIDConnectedMessage } from "./connect/did-connected";
 
 export {
     CompressionLevel,
@@ -14,7 +14,7 @@ export {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
-    DIDConnectedMessage,
     DIDConnectRequestMessage,
+    DIDConnectedMessage,
     Initiator,
 };

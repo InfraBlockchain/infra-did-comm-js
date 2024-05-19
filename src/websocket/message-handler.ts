@@ -31,6 +31,7 @@ import {
     x25519JwkFromX25519PublicKey,
 } from "../utils";
 import { InfraDIDCommAgent } from "./agent";
+import { VPSubmitMessage } from "@src/messages/vp/vp-submit";
 
 export async function messageHandler(
     jwe: string,
@@ -79,52 +80,78 @@ export async function messageHandler(
 
             sendDIDAuthMessage(mnemonic, verifiedPayload, agent.socket);
         } else if (alg === "dir") {
-            if ("did" in agent.peerInfo) {
-                const fromDID = agent.peerInfo["did"];
-                const fromAddress = fromDID.split(":").pop();
-                const fromPublicKey = publicKeyFromAddress(fromAddress);
-                const x25519JwkPublicKey =
-                    x25519JwkFromEd25519PublicKey(fromPublicKey);
-
-                const sharedKey = deriveSharedKey(
-                    privateKeyfromX25519Jwk(x25519JwkPrivateKey),
-                    publicKeyfromX25519Jwk(x25519JwkPublicKey),
+            if (!("did" in agent.peerInfo)) {
+                throw new Error(
+                    'The "did" property does not exist in agent.peerInfo',
                 );
+            }
 
-                const jwsFromJwe = await decryptJWE(
-                    jwe,
-                    await jose.exportJWK(sharedKey),
+            const fromDID = agent.peerInfo["did"];
+            const fromAddress = fromDID.split(":").pop();
+            const fromPublicKey = publicKeyFromAddress(fromAddress);
+            const x25519JwkPublicKey =
+                x25519JwkFromEd25519PublicKey(fromPublicKey);
+
+            const sharedKey = deriveSharedKey(
+                privateKeyfromX25519Jwk(x25519JwkPrivateKey),
+                publicKeyfromX25519Jwk(x25519JwkPublicKey),
+            );
+
+            const jwsFromJwe = await decryptJWE(
+                jwe,
+                await jose.exportJWK(sharedKey),
+            );
+
+            const JWK = key2JWK("Ed25519", fromPublicKey);
+            const jwsPayload = await verifyJWS(jwsFromJwe, JWK);
+
+            if (jwsPayload["type"] === "DIDAuth") {
+                console.log("DIDAuth Message Received");
+                didVerifyCallback(fromDID);
+                agent.isDIDVerified = true;
+                didAuthCallback(fromDID);
+                sendDIDConnectedMessageFromDIDAuthMessage(
+                    mnemonic,
+                    jwsPayload,
+                    agent.socket,
                 );
-
-                const JWK = key2JWK("Ed25519", fromPublicKey);
-                const jwsPayload = await verifyJWS(jwsFromJwe, JWK);
-
-                if (jwsPayload["type"] === "DIDAuth") {
-                    console.log("DIDAuth Message Received");
-                    didVerifyCallback(fromDID);
-                    agent.isDIDVerified = true;
-                    didAuthCallback(fromDID);
-                    sendDIDConnectedMessageFromDIDAuthMessage(
+            } else if (jwsPayload["type"] === "DIDConnected") {
+                console.log("DIDConnected Message Received");
+                didConnectedCallback(fromDID);
+                agent.isDIDConnected = true;
+                if (agent.role === "VERIFIER") {
+                    sendDIDConnectedMessageFromDIDConnectedMessage(
                         mnemonic,
                         jwsPayload,
-                        agent.socket,
+                        agent,
                     );
-                } else if (jwsPayload["type"] === "DIDConnected") {
-                    console.log("DIDConnected Message Received");
-                    didConnectedCallback(fromDID);
-                    agent.isDIDConnected = true;
-                    if (agent.role === "VERIFIER") {
-                        sendDIDConnectedMessageFromDIDConnectedMessage(
-                            mnemonic,
-                            jwsPayload,
-                            agent,
-                        );
-                    }
-                } else if (jwsPayload["type"] === "DIDAuthFailed") {
-                    didAuthFailedCallback(fromDID);
-                    console.log("DIDAuthFailed Message Received");
-                    agent.disconnect();
                 }
+            } else if (jwsPayload["type"] === "DIDAuthFailed") {
+                didAuthFailedCallback(fromDID);
+                console.log("DIDAuthFailed Message Received");
+                agent.disconnect();
+            } else if (jwsPayload["type"] === "VPReq") {
+                sendVPSubmitMessage(mnemonic, jwsPayload, agent);
+                console.log("VPReq Message Received");
+                // vpReqCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPSubmit") {
+                console.log("VPSubmit Message Received");
+                // vpSubmitCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPSubmitRes") {
+                console.log("VPSubmitRes Message Received");
+                // vpSubmitResCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPReqReject") {
+                console.log("VPReqReject Message Received");
+                // vpReqRejectCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPReqRejectRes") {
+                console.log("VPReqRejectRes Message Received");
+                // vpReqRejectResCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPSubmitLater") {
+                console.log("VPSubmitLater Message Received");
+                // vpSubmitLaterCallback(fromDID);
+            } else if (jwsPayload["type"] === "VPSubmitLaterRes") {
+                console.log("VPSubmitLaterRes Message Received");
+                // vpSubmitLaterResCallback(fromDID);
             }
         }
     } catch (e) {
@@ -333,6 +360,42 @@ export async function sendDIDAuthFailedMessage(
         }
     } catch (e) {
         console.log("failed to sendDIDAuthFailedMessage", e);
+    }
+}
+
+async function sendVPSubmitMessage(
+    mnemonic: string,
+    payload: any,
+    agent: InfraDIDCommAgent,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+        const receiverDID = payload["from"];
+
+        const vpSubmitMessage = new VPSubmitMessage(
+            id,
+            payload["to"][0],
+            [receiverDID],
+            currentTime,
+            currentTime + 30000,
+            payload["body"]["VCs"],
+            payload["body"]["challenge"],
+        );
+
+        const jwe = await createEncryptedJWE(
+            vpSubmitMessage,
+            mnemonic,
+            receiverDID,
+        );
+
+        agent.socket.emit("message", {
+            to: agent.peerInfo["socketId"],
+            m: jwe,
+        });
+        console.log(`VPSubmitMessage sent to ${agent.peerInfo["socketId"]}`);
+    } catch (e) {
+        console.log("failed to sendVPSubmitMessage", e);
     }
 }
 

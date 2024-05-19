@@ -1,26 +1,26 @@
-import { Context } from "./commons";
+import { Context } from "../commons";
 
-export class DIDAuthFailedMessage {
+export class DIDConnectedMessage {
     id: string;
-    type: string = "DIDAuthFailed";
+    type: string = "DIDConnected";
     from: string;
     to: string[];
     createdTime: number;
     expiresTime: number;
     body: {
         context: Context;
-        reason: string;
+        status: string;
     };
 
     /**
-     * Creates a new instance of DIDAuthFailedMessage.
+     * Creates a new DIDConnectedMessage instance.
      * @param id - The ID of the message.
      * @param from - The sender of the message.
      * @param to - The recipients of the message.
      * @param createdTime - The timestamp when the message was created.
      * @param expiresTime - The timestamp when the message expires.
      * @param context - The context of the message.
-     * @param reason - The reason for the authentication failure.
+     * @param status - The status of the message.
      */
     constructor(
         id: string,
@@ -29,7 +29,7 @@ export class DIDAuthFailedMessage {
         createdTime: number,
         expiresTime: number,
         context: Context,
-        reason: string,
+        status: string,
     ) {
         this.id = id;
         this.from = from;
@@ -38,12 +38,12 @@ export class DIDAuthFailedMessage {
         this.expiresTime = expiresTime;
         this.body = {
             context: context,
-            reason: reason,
+            status: status,
         };
     }
 
     /**
-     * Converts the DIDAuthFailedMessage instance to a JSON object.
+     * Converts the DIDConnectedMessage instance to a JSON object.
      * @returns The JSON representation of the message.
      */
     toJson(): Record<string, any> {
@@ -56,7 +56,7 @@ export class DIDAuthFailedMessage {
             expiresTime: this.expiresTime,
             body: {
                 context: this.body.context.toJson(), // assuming Context has a toJson method
-                reason: this.body.reason,
+                status: this.body.status,
             },
         };
     }
