@@ -1,5 +1,4 @@
 import { VerifiablePresentation } from "infra-did-js";
-import { Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -16,6 +15,8 @@ import {
     DIDAuthInitMessage,
     DIDAuthMessage,
     DIDConnectedMessage,
+    VPReqRejectResMessage,
+    VPSubmitResMessage,
 } from "../messages";
 import {
     deriveSharedKey,
@@ -78,7 +79,7 @@ export async function messageHandler(
             };
             agent.isReceivedDIDAuthInit = true;
 
-            sendDIDAuthMessage(mnemonic, verifiedPayload, agent.socket);
+            sendDIDAuthMessage(mnemonic, verifiedPayload, agent);
         } else if (alg === "dir") {
             if (!("did" in agent.peerInfo)) {
                 throw new Error(
@@ -115,7 +116,7 @@ export async function messageHandler(
                 sendDIDConnectedMessageFromDIDAuthMessage(
                     mnemonic,
                     jwsPayload,
-                    agent.socket,
+                    agent,
                 );
             } else if (jwsPayload["type"] === "DIDConnected") {
                 console.log("DIDConnected Message Received");
@@ -151,7 +152,7 @@ export async function messageHandler(
 
                 const verifiedVCRequirements = validateVCRequirement(
                     VP,
-                    agent.VCs,
+                    agent.VCRequirements,
                 );
 
                 if (!verifyVPResult.verified) {
@@ -162,12 +163,15 @@ export async function messageHandler(
                     throw new Error(`failed to verify VCRequirements`);
                 }
 
+                sendVPSubmitRes(mnemonic, jwsPayload, agent);
+
                 console.log("VPSubmit Message Received");
                 // vpSubmitCallback(fromDID);
             } else if (jwsPayload["type"] === "VPSubmitRes") {
                 console.log("VPSubmitRes Message Received");
                 // vpSubmitResCallback(fromDID);
             } else if (jwsPayload["type"] === "VPReqReject") {
+                sendVPReqRejectRes(mnemonic, jwsPayload, agent);
                 console.log("VPReqReject Message Received");
                 // vpReqRejectCallback(fromDID);
             } else if (jwsPayload["type"] === "VPReqRejectRes") {
@@ -240,7 +244,7 @@ export async function sendDIDAuthInitMessageToReceiver(
 export async function sendDIDAuthMessage(
     mnemonic: string,
     didAuthInitMessagePayload: any,
-    socket: Socket,
+    agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -263,7 +267,7 @@ export async function sendDIDAuthMessage(
             receiverDID,
         );
 
-        socket.emit("message", {
+        agent.socket.emit("message", {
             to: didAuthMessage.body.peerSocketId,
             m: jwe,
         });
@@ -278,7 +282,7 @@ export async function sendDIDAuthMessage(
 export async function sendDIDConnectedMessageFromDIDAuthMessage(
     mnemonic: string,
     didAuthMessagePayload: any, // Assuming an appropriate interface/type for the payload
-    socket: Socket,
+    agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -300,7 +304,7 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
             receiverDID,
         );
 
-        socket.emit("message", {
+        agent.socket.emit("message", {
             to: didAuthMessagePayload["body"]["socketId"],
             m: jwe,
         });
@@ -387,6 +391,71 @@ export async function sendDIDAuthFailedMessage(
         }
     } catch (e) {
         console.log("failed to sendDIDAuthFailedMessage", e);
+    }
+}
+
+export async function sendVPSubmitRes(
+    mnemonic: string,
+    did: Record<string, any>,
+    agent: InfraDIDCommAgent,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+        const receiverDID = agent.peerInfo["did"];
+        const receiverSocketId = agent.peerInfo["socketId"];
+
+        const vpSubmitResMessage = new VPSubmitResMessage(
+            id,
+            agent.did,
+            [receiverDID],
+            currentTime,
+            currentTime + 30000,
+            "Completed to verify the VP",
+        );
+
+        const jwe = await createEncryptedJWE(
+            vpSubmitResMessage,
+            mnemonic,
+            receiverDID,
+        );
+
+        agent.socket.emit("message", { to: receiverSocketId, m: jwe });
+        console.log(`VPSubmitResMessage sent to ${receiverSocketId}`);
+    } catch (e) {
+        console.log("failed to VPSubmitResMessage", e);
+    }
+}
+
+export async function sendVPReqRejectRes(
+    mnemonic: string,
+    payload: Record<string, any>,
+    agent: InfraDIDCommAgent,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+        const receiverDID = agent.peerInfo["did"];
+        const receiverSocketId = agent.peerInfo["socketId"];
+
+        const vpSubmitResMessage = new VPReqRejectResMessage(
+            id,
+            agent.did,
+            [receiverDID],
+            currentTime,
+            currentTime + 30000,
+        );
+
+        const jwe = await createEncryptedJWE(
+            vpSubmitResMessage,
+            mnemonic,
+            receiverDID,
+        );
+
+        agent.socket.emit("message", { to: receiverSocketId, m: jwe });
+        console.log(`VPReqRejectResMessage sent to ${receiverSocketId}`);
+    } catch (e) {
+        console.log("failed to VPReqRejectResMessage", e);
     }
 }
 

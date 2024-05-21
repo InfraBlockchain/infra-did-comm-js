@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
+    VPReqRejectMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
 // 메세지 index 통합 정리
@@ -38,7 +39,7 @@ export class InfraDIDCommAgent {
     // VP related
     // TODO: find a better idea to store VPReqChallenge and domain
     VPReqChallenge: string = "";
-    VCs: VCRequirement[];
+    VCRequirements: VCRequirement[];
     infraApi: InfraSS58;
     didChainEndpoint = "";
 
@@ -113,8 +114,10 @@ export class InfraDIDCommAgent {
 
     async init(): Promise<void> {
         this.connect();
+        await this.setupInfraApi();
+    }
 
-        // 함수 따로 만들어서 빼기
+    private async setupInfraApi(): Promise<void> {
         await cryptoWaitReady();
         const txfeePayerAccountKeyPair = await InfraSS58.getKeyringPairFromUri(
             this.mnemonic,
@@ -268,9 +271,9 @@ export class InfraDIDCommAgent {
         }
     }
 
-    async sendVPReq(VCs: VCRequirement[]): Promise<void> {
+    async sendVPReq(VCRequirements: VCRequirement[]): Promise<void> {
         try {
-            this.VCs = VCs;
+            this.VCRequirements = VCRequirements;
             const currentTime = Math.floor(Date.now() / 1000);
             const id = uuidv4();
 
@@ -280,17 +283,41 @@ export class InfraDIDCommAgent {
                 [this.peerInfo.did],
                 currentTime,
                 currentTime + 30000,
-                VCs,
+                VCRequirements,
                 this.infraApi.getChallenge(),
             );
 
             await sendJWE(this.mnemonic, vpReqMessage, this);
 
             console.log(
-                `VPSubmitMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqMessage}`,
+                `VPReqMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqMessage}`,
             );
         } catch (error) {
             throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
+        }
+    }
+
+    async sendVPReqReject(reason: string): Promise<void> {
+        try {
+            const currentTime = Math.floor(Date.now() / 1000);
+            const id = uuidv4();
+
+            const vpReqRejectMessage = new VPReqRejectMessage(
+                id,
+                this.did,
+                [this.peerInfo.did],
+                currentTime,
+                currentTime + 30000,
+                reason,
+            );
+
+            await sendJWE(this.mnemonic, vpReqRejectMessage, this);
+
+            console.log(
+                `VPReqRejectMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqRejectMessage}`,
+            );
+        } catch (error) {
+            throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
         }
     }
 }

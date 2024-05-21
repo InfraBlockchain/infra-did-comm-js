@@ -9,7 +9,7 @@ import {
 } from "./common";
 
 _config({ path: __dirname + "/../../.env" });
-const verifierSocketId = "lFjFwwmORC0vjPmRACsd";
+const verifierSocketId = "2qH12pO7nukhAsHZACsl";
 
 async function initiateConnectionByHolder(): Promise<void> {
     const agent = await initializeAgent("HOLDER");
@@ -41,9 +41,22 @@ async function receiveConnectionInitiatedByVerifier(): Promise<void> {
 
         await agent.sendDIDAuthInitMessage(encoded);
 
+        await handleVPReqReject(agent);
+
+        await sleep(3000);
         await handleVPSubmission(agent);
     } else {
         console.log("Socket ID is null");
+    }
+}
+
+async function handleVPReqReject(agent: InfraDIDCommAgent): Promise<void> {
+    while (true) {
+        await sleep(1000);
+        if (agent.VPReqChallenge !== "") {
+            await agent.sendVPReqReject("hate you");
+            break;
+        }
     }
 }
 
