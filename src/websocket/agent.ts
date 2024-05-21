@@ -1,22 +1,32 @@
 import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
+// 메세지 index 통합 정리
 import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
-import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
+// 메세지 index 통합 정리
+import { VPReqMessage } from "../messages/vp/vp-req";
+import { VPSubmitMessage } from "../messages/vp/vp-submit";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
+    sendJWE,
+    VCRequirement,
 } from "./message-handler";
+
+import { cryptoWaitReady } from "@polkadot/util-crypto";
+import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
+import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
 
 export class InfraDIDCommAgent {
     did: string;
     mnemonic: string;
     role: string = "HOLDER";
     url: string;
+    domain: string;
 
     socket: Socket;
     peerInfo: { [key: string]: string } = {}; // Peers' info {did, socketId}
@@ -25,8 +35,12 @@ export class InfraDIDCommAgent {
     isDIDVerified: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
-    // TODO: change boolean into map
-    isVPRequested: boolean = false;
+    // VP related
+    // TODO: find a better idea to store VPReqChallenge and domain
+    VPReqChallenge: string = "";
+    VCs: VCRequirement[];
+    infraApi: InfraSS58;
+    didChainEndpoint = "";
 
     /* eslint-disable @typescript-eslint/no-unused-vars */
     didAuthCallback: (peerDID: string) => boolean = peerDID => true;
@@ -38,10 +52,17 @@ export class InfraDIDCommAgent {
     private _socketIdPromiseResolver: (value: string) => void;
     socketId: Promise<string>;
 
-    constructor(url: string, did: string, mnemonic: string, role: string) {
+    constructor(
+        url: string,
+        did: string,
+        mnemonic: string,
+        role: string,
+        didChainEndpoint: string,
+    ) {
         this.url = url;
         this.did = did;
         this.mnemonic = mnemonic;
+        this.didChainEndpoint = didChainEndpoint;
         if (role === "HOLDER" || role === "VERIFIER") {
             this.role = role;
         } else {
@@ -90,8 +111,36 @@ export class InfraDIDCommAgent {
         this.didVerifyCallback = callback;
     }
 
-    init(): void {
-        this.socket.connect();
+    async init(): Promise<void> {
+        this.connect();
+
+        // 함수 따로 만들어서 빼기
+        await cryptoWaitReady();
+        const txfeePayerAccountKeyPair = await InfraSS58.getKeyringPairFromUri(
+            this.mnemonic,
+            "sr25519",
+        );
+        const edKeyPair = await InfraSS58.getKeyringPairFromUri(
+            this.mnemonic,
+            "ed25519",
+        );
+        const networkId = "01";
+        const confBlockchainNetwork = {
+            networkId,
+            address: this.didChainEndpoint,
+            txfeePayerAccountKeyPair,
+        };
+
+        const conf = {
+            ...confBlockchainNetwork,
+            did: this.did,
+            keyPair: edKeyPair,
+            controllerDID: this.did,
+            controllerKeyPair: edKeyPair,
+            cryptoInfo: CRYPTO_INFO.ED25519_2018,
+        };
+
+        this.infraApi = await InfraSS58.createAsync(conf);
     }
 
     async initReceivingConnectRequest(encoded: string): Promise<void> {
@@ -153,6 +202,9 @@ export class InfraDIDCommAgent {
             const currentTime = Math.floor(Date.now() / 1000);
             const id = uuidv4();
 
+            // save domain
+            this.domain = didConnectRequestMessage.body.context.domain;
+
             const receiverDID = didConnectRequestMessage.from;
             const peerSocketId =
                 didConnectRequestMessage.body.initiator.socketId;
@@ -180,6 +232,62 @@ export class InfraDIDCommAgent {
             this.socket.emit("message", { to: peerSocketId, m: message });
             console.log(
                 `DIDAuthInitMessage sent to ${peerSocketId}, message: ${message}`,
+            );
+        } catch (error) {
+            throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
+        }
+    }
+
+    async sendVPSubmit(VP: string): Promise<void> {
+        try {
+            const currentTime = Math.floor(Date.now() / 1000);
+            const id = uuidv4();
+
+            if (this.VPReqChallenge === "") {
+                throw new Error(
+                    `There is no received VPReq message from ${this.peerInfo.did}`,
+                );
+            }
+
+            const vpSubmitMessage = new VPSubmitMessage(
+                id,
+                this.did,
+                [this.peerInfo.did],
+                currentTime,
+                currentTime + 30000,
+                VP,
+            );
+
+            await sendJWE(this.mnemonic, vpSubmitMessage, this);
+
+            console.log(
+                `VPSubmitMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpSubmitMessage}`,
+            );
+        } catch (error) {
+            throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
+        }
+    }
+
+    async sendVPReq(VCs: VCRequirement[]): Promise<void> {
+        try {
+            this.VCs = VCs;
+            const currentTime = Math.floor(Date.now() / 1000);
+            const id = uuidv4();
+
+            const vpReqMessage = new VPReqMessage(
+                id,
+                this.did,
+                [this.peerInfo.did],
+                currentTime,
+                currentTime + 30000,
+                VCs,
+                this.infraApi.getChallenge(),
+            );
+
+            await sendJWE(this.mnemonic, vpReqMessage, this);
+
+            console.log(
+                `VPSubmitMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqMessage}`,
             );
         } catch (error) {
             throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);

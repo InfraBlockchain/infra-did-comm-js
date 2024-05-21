@@ -5,7 +5,6 @@
     "source": "src/index.ts",
     "main": "dist/src/index.cjs",
     "module": "dist/src/index.modern.js",
-    "type": "module",
     "types": "dist/src/index.d.ts",
     "repository": {
         "type": "git",
@@ -50,6 +49,7 @@
         "@types/uuid": "^9",
         "@typescript-eslint/eslint-plugin": "^7.0.2",
         "@typescript-eslint/parser": "^7.0.2",
+        "dotenv": "^16.4.5",
         "eslint": "^8.5.7",
         "eslint-config-prettier": "^9.1.0",
         "eslint-plugin-import": "^2.29.1",

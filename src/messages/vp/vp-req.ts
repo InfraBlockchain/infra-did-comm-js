@@ -1,3 +1,5 @@
+import { VCRequirement } from "@src/websocket";
+
 export class VPReqMessage {
     id: string;
     type: string = "VPReq";
@@ -6,7 +8,7 @@ export class VPReqMessage {
     createdTime: number;
     expiresTime: number;
     body: {
-        VCs: [];
+        VCRequirements: VCRequirement[];
         challenge: string;
     };
 
@@ -27,7 +29,7 @@ export class VPReqMessage {
         to: string[],
         createdTime: number,
         expiresTime: number,
-        VCs: [],
+        VCRequirements: VCRequirement[],
         challenge: string,
     ) {
         this.id = id;
@@ -36,7 +38,7 @@ export class VPReqMessage {
         this.createdTime = createdTime;
         this.expiresTime = expiresTime;
         this.body = {
-            VCs,
+            VCRequirements,
             challenge,
         };
     }

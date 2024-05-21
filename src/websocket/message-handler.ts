@@ -1,3 +1,4 @@
+import { VerifiablePresentation } from "infra-did-js";
 import { Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -31,7 +32,6 @@ import {
     x25519JwkFromX25519PublicKey,
 } from "../utils";
 import { InfraDIDCommAgent } from "./agent";
-import { VPSubmitMessage } from "@src/messages/vp/vp-submit";
 
 export async function messageHandler(
     jwe: string,
@@ -109,6 +109,8 @@ export async function messageHandler(
                 console.log("DIDAuth Message Received");
                 didVerifyCallback(fromDID);
                 agent.isDIDVerified = true;
+                // save domain
+                agent.domain = jwsPayload.body.context.domain;
                 didAuthCallback(fromDID);
                 sendDIDConnectedMessageFromDIDAuthMessage(
                     mnemonic,
@@ -131,10 +133,35 @@ export async function messageHandler(
                 console.log("DIDAuthFailed Message Received");
                 agent.disconnect();
             } else if (jwsPayload["type"] === "VPReq") {
-                sendVPSubmitMessage(mnemonic, jwsPayload, agent);
+                agent.VPReqChallenge = jwsPayload.body.challenge;
+                // saveVPReqMessage(mnemonic, jwsPayload, agent);
                 console.log("VPReq Message Received");
                 // vpReqCallback(fromDID);
             } else if (jwsPayload["type"] === "VPSubmit") {
+                // verifying jwsPayload;
+                const VP = VerifiablePresentation.fromJSON(
+                    JSON.parse(jwsPayload.body.VP),
+                );
+
+                const verifyVPResult = await VP.verify(
+                    agent.infraApi,
+                    agent.infraApi.getChallenge(),
+                    agent.domain,
+                );
+
+                const verifiedVCRequirements = validateVCRequirement(
+                    VP,
+                    agent.VCs,
+                );
+
+                if (!verifyVPResult.verified) {
+                    throw new Error(`failed to verify VP`);
+                }
+
+                if (!verifiedVCRequirements) {
+                    throw new Error(`failed to verify VCRequirements`);
+                }
+
                 console.log("VPSubmit Message Received");
                 // vpSubmitCallback(fromDID);
             } else if (jwsPayload["type"] === "VPSubmitRes") {
@@ -363,37 +390,26 @@ export async function sendDIDAuthFailedMessage(
     }
 }
 
-async function sendVPSubmitMessage(
+export async function sendJWE(
     mnemonic: string,
-    payload: any,
+    message: any, // Assuming an appropriate interface/type for the payload
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const id = uuidv4();
-        const receiverDID = payload["from"];
-
-        const vpSubmitMessage = new VPSubmitMessage(
-            id,
-            payload["to"][0],
-            [receiverDID],
-            currentTime,
-            currentTime + 30000,
-            payload["body"]["VCs"],
-            payload["body"]["challenge"],
-        );
-
         const jwe = await createEncryptedJWE(
-            vpSubmitMessage,
+            message,
             mnemonic,
-            receiverDID,
+            message["to"][0],
         );
 
         agent.socket.emit("message", {
             to: agent.peerInfo["socketId"],
             m: jwe,
         });
-        console.log(`VPSubmitMessage sent to ${agent.peerInfo["socketId"]}`);
+
+        console.log(
+            `${message["type"]} Message sent to ${agent.peerInfo["socketId"]}`,
+        );
     } catch (e) {
         console.log("failed to sendVPSubmitMessage", e);
     }
@@ -433,4 +449,31 @@ async function createEncryptedJWE(
     } catch (e) {
         console.log("failed to createEncryptedJWE", e);
     }
+}
+
+function validateVCRequirement(
+    signedVP: VerifiablePresentation,
+    vcRequirements: VCRequirement[],
+): boolean {
+    const submittedVCs = signedVP["credentials"];
+    console.log("submittedVCs", submittedVCs);
+
+    // TODO: Add to validate "@context"
+
+    return vcRequirements.every(vcRequirement => {
+        return submittedVCs.some(vpVC => {
+            const VCTypeList: string[] = vpVC["type"];
+            const VCIssuer: string[] = vpVC["issuer"];
+            return (
+                VCTypeList.includes(vcRequirement.VCType) &&
+                VCIssuer.includes(vcRequirement.issuer)
+            );
+        });
+    });
+}
+
+export class VCRequirement {
+    VCType: string;
+    context: string;
+    issuer: string;
 }
