@@ -1,6 +1,19 @@
 // common.ts
+import { VerifiableCredential } from "infra-did-js";
 import { CompressionLevel, DIDConnectRequestMessage } from "../../src/messages";
-import { InfraDIDCommAgent } from "../../src/websocket";
+import { InfraDIDCommAgent, VCRequirement } from "../../src/websocket";
+
+export const verifierDID =
+    "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
+// "did:infra:space:15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5";
+
+const issuerDID =
+    "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
+
+export const holderMnemonic =
+    "bamboo absorb chief dog box envelope leisure pink alone service spin more";
+export const holderDid =
+    "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
 
 // Utility Functions
 export function didAuthCallback(peerDID: string): boolean {
@@ -26,10 +39,9 @@ export async function initializeAgent(
 ): Promise<InfraDIDCommAgent> {
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
-    const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
     const agent = new InfraDIDCommAgent(
         "http://data-market.test.newnal.com:9000",
-        did,
+        verifierDID,
         mnemonic,
         role,
         process.env.DID_CHAIN_ENDPOINT,
@@ -39,7 +51,8 @@ export async function initializeAgent(
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
 
-    agent.init();
+    await agent.init();
+
     return agent;
 }
 
@@ -60,3 +73,38 @@ export async function createAndEncodeRequestMessage(
         DIDConnectRequestMessage.fromJSON(minimalCompactJson);
     return didConnectRequestMessage.encode(CompressionLevel.MINIMAL);
 }
+
+export async function mockVCsFromVCRequirements(
+    agent: InfraDIDCommAgent,
+    vcRequirements: VCRequirement[],
+): Promise<VerifiableCredential[]> {
+    let VCs: VerifiableCredential[] = [];
+
+    for (const requirement of vcRequirements) {
+        const vc = new VerifiableCredential(requirement.issuer);
+        vc.addContext("https://www.w3.org/2018/credentials/v1");
+        vc.addContext(requirement.vcType);
+        vc.addType("VerifiableCredential");
+        vc.addSubject({
+            id: "did:example:abcdefg",
+            degree: {
+                type: "BachelorDegree",
+                name: "Bachelor of Science and Arts",
+            },
+        });
+
+        const signedVC = await vc.sign(
+            await agent.infraApi.didModule.getKeyDoc(),
+        );
+        VCs.push(signedVC);
+    }
+
+    return VCs;
+}
+
+export const vcRequirements: VCRequirement[] = [
+    {
+        vcType: "https://schema.org",
+        issuer: issuerDID,
+    },
+];

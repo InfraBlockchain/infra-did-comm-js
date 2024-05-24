@@ -1,15 +1,80 @@
 // socket_io_holder.ts
 import { config as _config } from "dotenv";
-import { VerifiableCredential, VerifiablePresentation } from "infra-did-js";
-import { InfraDIDCommAgent } from "../../src/websocket";
+import { VerifiableCredential } from "infra-did-js";
+import {
+    InfraDIDCommAgent,
+    VCHoldingResult,
+    VCRequirement,
+    VPReqCallbackResponse,
+    findMatchingVCRequirements,
+} from "../../src/websocket";
 import {
     createAndEncodeRequestMessage,
+    didAuthCallback,
+    didAuthFailedCallback,
+    didConnectedCallback,
+    holderDid,
+    holderMnemonic,
     initializeAgent,
     sleep,
+    vcRequirements,
 } from "./common";
 
 _config({ path: __dirname + "/../../.env" });
-const verifierSocketId = "2qH12pO7nukhAsHZACsl";
+const verifierSocketId = "X_I7KosIWyvDbjIvACyf";
+let isPermitted = true;
+let mockVCRepository: VerifiableCredential[];
+
+export function VPSubmitDataCallback(
+    vcRequirements: VCRequirement[],
+    challenge: string,
+): VPReqCallbackResponse {
+    const vcRepository = mockVCRepository;
+    // allow all verifiers
+
+    const vpReqResult = findMatchingVCRequirements(
+        vcRepository,
+        vcRequirements,
+    );
+    console.log("isVCRequirements", vpReqResult);
+
+    console.log("VP Submit Data Callback, vcRequirements", vcRequirements);
+    console.log("VP Submit Data Callback, challenge", challenge);
+
+    // let vpReqCallbackResponse: VPReqCallbackResponse;
+    if (isPermitted && vpReqResult.result) {
+        return {
+            status: VCHoldingResult.PREPARED,
+            requestedVCs: vpReqResult.matchingVCs,
+        };
+    } else {
+        if (isPermitted) {
+            return { status: VCHoldingResult.LATER };
+        } else {
+            return { status: VCHoldingResult.DENIED };
+        }
+    }
+}
+
+// Agent Initialization Holder
+export async function initializeAgentMockVCsHolder(): Promise<InfraDIDCommAgent> {
+    const agent = new InfraDIDCommAgent(
+        "http://data-market.test.newnal.com:9000",
+        holderDid,
+        holderMnemonic,
+        "HOLDER",
+        process.env.DID_CHAIN_ENDPOINT,
+    );
+
+    agent.setDIDAuthCallback(didAuthCallback);
+    agent.setDIDConnectedCallback(didConnectedCallback);
+    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setVPSubmitDataCallback(VPSubmitDataCallback);
+
+    await agent.init();
+
+    return agent;
+}
 
 async function initiateConnectionByHolder(): Promise<void> {
     const agent = await initializeAgent("HOLDER");
@@ -27,8 +92,63 @@ async function initiateConnectionByHolder(): Promise<void> {
     }
 }
 
+export async function mockVCsFromVCRequirements(
+    vcRequirements: VCRequirement[],
+): Promise<VerifiableCredential[]> {
+    let VCs: VerifiableCredential[] = [];
+
+    const mockAgent = new InfraDIDCommAgent(
+        "http://data-market.test.newnal.com:9000",
+        holderDid,
+        holderMnemonic,
+        "HOLDER",
+        process.env.DID_CHAIN_ENDPOINT,
+    );
+    await mockAgent.init();
+
+    for (const requirement of vcRequirements) {
+        const vc = new VerifiableCredential(requirement.issuer);
+        vc.addContext("https://www.w3.org/2018/credentials/v1");
+        vc.addContext(requirement.vcType);
+        vc.addType("VerifiableCredential");
+        vc.addSubject({
+            id: "did:example:abcdefg",
+            degree: {
+                type: "BachelorDegree",
+                name: "Bachelor of Science and Arts",
+            },
+        });
+
+        const signedVC = await vc.sign(
+            await mockAgent.infraApi.didModule.getKeyDoc(),
+        );
+        VCs.push(signedVC);
+    }
+
+    return VCs;
+}
+
 async function receiveConnectionInitiatedByVerifier(): Promise<void> {
-    const agent = await initializeAgent("HOLDER");
+    mockVCRepository = await mockVCsFromVCRequirements(vcRequirements);
+
+    const mnemonic =
+        "bamboo absorb chief dog box envelope leisure pink alone service spin more";
+    const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
+    const agent = new InfraDIDCommAgent(
+        "http://data-market.test.newnal.com:9000",
+        did,
+        mnemonic,
+        "HOLDER",
+        process.env.DID_CHAIN_ENDPOINT,
+    );
+
+    agent.setDIDAuthCallback(didAuthCallback);
+    agent.setDIDConnectedCallback(didConnectedCallback);
+    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setVPSubmitDataCallback(VPSubmitDataCallback);
+
+    await agent.init();
+
     const socketId = await agent.socketId;
 
     if (socketId) {
@@ -37,105 +157,25 @@ async function receiveConnectionInitiatedByVerifier(): Promise<void> {
             verifierSocketId,
             "newnal",
         );
-        console.log("Received encoded request message: " + encoded);
 
+        // 1st: Send VP Submit & Receive VP Submit Res
         await agent.sendDIDAuthInitMessage(encoded);
 
-        await handleVPReqReject(agent);
-
+        // 2nd: Send VP Req Reject
         await sleep(3000);
-        await handleVPSubmission(agent);
+        isPermitted = false;
+
+        // 3rd: SubmitLater due to not prepared VC requirements
+        await sleep(3000);
+        isPermitted = true;
+        mockVCRepository = [];
     } else {
         console.log("Socket ID is null");
     }
 }
 
-async function handleVPReqReject(agent: InfraDIDCommAgent): Promise<void> {
-    while (true) {
-        await sleep(1000);
-        if (agent.VPReqChallenge !== "") {
-            await agent.sendVPReqReject("hate you");
-            break;
-        }
-    }
-}
-
-async function handleVPSubmission(agent: InfraDIDCommAgent): Promise<void> {
-    while (true) {
-        await sleep(1000);
-        if (agent.VPReqChallenge !== "") {
-            console.log("1");
-
-            const signedVC = await createSignedVC(agent);
-
-            const signedVP = await createSignedVP(agent, signedVC);
-
-            const stringSignedVP = JSON.stringify(signedVP.toJSON());
-            await agent.sendVPSubmit(stringSignedVP);
-            break;
-        }
-    }
-}
-
-async function createSignedVC(
-    agent: InfraDIDCommAgent,
-): Promise<VerifiableCredential> {
-    const vc = new VerifiableCredential(
-        "did:infra:space:15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5",
-    );
-    vc.addContext("https://www.w3.org/2018/credentials/v1");
-    vc.addContext("https://schema.org");
-    vc.addType("VerifiableCredential");
-    vc.addType("UniversityDegreeCredential");
-    vc.addSubject({
-        id: "did:example:abcdefg",
-        degree: {
-            type: "BachelorDegree",
-            name: "Bachelor of Science and Arts",
-        },
-    });
-
-    return vc.sign(await agent.infraApi.didModule.getKeyDoc());
-}
-
-async function createSignedVP(
-    agent: InfraDIDCommAgent,
-    signedVC: VerifiableCredential,
-): Promise<VerifiablePresentation> {
-    const vp = new VerifiablePresentation(
-        "http://university.example/credentials/58473",
-    );
-    vp.addContext("https://www.w3.org/2018/credentials/examples/v1");
-    vp.addContext("https://schema.org");
-    vp.setHolder(agent.did);
-    vp.addCredential(signedVC);
-
-    console.log("agent.VPReqChallenge", agent.VPReqChallenge);
-
-    return vp.sign(agent.infraApi, agent.VPReqChallenge, "newnal");
-}
-
-// 6. Execution Code
 async function main() {
     await receiveConnectionInitiatedByVerifier();
 }
 
 main();
-
-// TODO: use heldVCs to submit corresponding VCRequirements from verifier
-// class Holder {
-//     private heldVCs: any[]; // Holder가 보유한 VC 리스트
-
-//     constructor(heldVCs: any[]) {
-//         this.heldVCs = heldVCs;
-//     }
-
-//     findMatchingVCs(requestedVCs: VCRequest[]): boolean {
-//         return requestedVCs.every(requestedVC => {
-//             return this.heldVCs.some(heldVC => {
-//                 return heldVC.type.includes(requestedVC.VCType) &&
-//                     heldVC['@context'].includes(requestedVC.context);
-//             });
-//         });
-//     }
-// }

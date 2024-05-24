@@ -1,16 +1,14 @@
+import { cryptoWaitReady } from "@polkadot/util-crypto";
+import "@polkadot/wasm-crypto/initWasmAsm";
 import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
-// 메세지 index 통합 정리
 import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
-    VPReqRejectMessage,
+    VPReqMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
-// 메세지 index 통합 정리
-import { VPReqMessage } from "../messages/vp/vp-req";
-import { VPSubmitMessage } from "../messages/vp/vp-submit";
 import {
     messageHandler,
     sendDIDAuthInitMessageToReceiver,
@@ -18,8 +16,7 @@ import {
     VCRequirement,
 } from "./message-handler";
 
-import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
+import { CRYPTO_INFO, InfraSS58, VerifiableCredential } from "infra-did-js";
 import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
 
 export class InfraDIDCommAgent {
@@ -28,6 +25,7 @@ export class InfraDIDCommAgent {
     role: string = "HOLDER";
     url: string;
     domain: string;
+    verifierEndpoint: string = "";
 
     socket: Socket;
     peerInfo: { [key: string]: string } = {}; // Peers' info {did, socketId}
@@ -36,10 +34,9 @@ export class InfraDIDCommAgent {
     isDIDVerified: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
-    // VP related
-    // TODO: find a better idea to store VPReqChallenge and domain
-    VPReqChallenge: string = "";
+    // VC VP related
     VCRequirements: VCRequirement[];
+    VPReqChallenge: string = "";
     infraApi: InfraSS58;
     didChainEndpoint = "";
 
@@ -48,6 +45,10 @@ export class InfraDIDCommAgent {
     didConnectedCallback: (peerDID: string) => void = peerDID => {};
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
     didVerifyCallback: (peerDID: string) => boolean = peerDID => true;
+    VPSubmitDataCallback: (
+        vcRequirements: VCRequirement[],
+        challenge: string,
+    ) => VPReqCallbackResponse;
     /* eslint-enable @typescript-eslint/no-unused-vars */
 
     private _socketIdPromiseResolver: (value: string) => void;
@@ -112,6 +113,15 @@ export class InfraDIDCommAgent {
         this.didVerifyCallback = callback;
     }
 
+    setVPSubmitDataCallback(
+        callback: (
+            vcRequirements: VCRequirement[],
+            challenge: string,
+        ) => VPReqCallbackResponse,
+    ): void {
+        this.VPSubmitDataCallback = callback;
+    }
+
     async init(): Promise<void> {
         this.connect();
         await this.setupInfraApi();
@@ -147,7 +157,7 @@ export class InfraDIDCommAgent {
     }
 
     async initReceivingConnectRequest(encoded: string): Promise<void> {
-        this.socket.connect();
+        this.init();
         await this.sendDIDAuthInitMessage(encoded);
     }
 
@@ -193,6 +203,7 @@ export class InfraDIDCommAgent {
                 this.didConnectedCallback,
                 this.didAuthFailedCallback,
                 this.didVerifyCallback,
+                this.VPSubmitDataCallback,
             );
         });
     }
@@ -205,7 +216,6 @@ export class InfraDIDCommAgent {
             const currentTime = Math.floor(Date.now() / 1000);
             const id = uuidv4();
 
-            // save domain
             this.domain = didConnectRequestMessage.body.context.domain;
 
             const receiverDID = didConnectRequestMessage.from;
@@ -240,42 +250,12 @@ export class InfraDIDCommAgent {
             throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
         }
     }
-
-    async sendVPSubmit(VP: string): Promise<void> {
-        try {
-            const currentTime = Math.floor(Date.now() / 1000);
-            const id = uuidv4();
-
-            if (this.VPReqChallenge === "") {
-                throw new Error(
-                    `There is no received VPReq message from ${this.peerInfo.did}`,
-                );
-            }
-
-            const vpSubmitMessage = new VPSubmitMessage(
-                id,
-                this.did,
-                [this.peerInfo.did],
-                currentTime,
-                currentTime + 30000,
-                VP,
-            );
-
-            await sendJWE(this.mnemonic, vpSubmitMessage, this);
-
-            console.log(
-                `VPSubmitMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpSubmitMessage}`,
-            );
-        } catch (error) {
-            throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
-        }
-    }
-
     async sendVPReq(VCRequirements: VCRequirement[]): Promise<void> {
         try {
-            this.VCRequirements = VCRequirements;
             const currentTime = Math.floor(Date.now() / 1000);
             const id = uuidv4();
+
+            this.VCRequirements = VCRequirements;
 
             const vpReqMessage = new VPReqMessage(
                 id,
@@ -287,37 +267,20 @@ export class InfraDIDCommAgent {
                 this.infraApi.getChallenge(),
             );
 
-            await sendJWE(this.mnemonic, vpReqMessage, this);
-
-            console.log(
-                `VPReqMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqMessage}`,
-            );
+            await sendJWE(this, vpReqMessage);
         } catch (error) {
-            throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
+            throw new Error(`Failed to send sendVPReq Message: ${error}`);
         }
     }
+}
 
-    async sendVPReqReject(reason: string): Promise<void> {
-        try {
-            const currentTime = Math.floor(Date.now() / 1000);
-            const id = uuidv4();
+export enum VCHoldingResult {
+    PREPARED = "prepared",
+    LATER = "later",
+    DENIED = "denied",
+}
 
-            const vpReqRejectMessage = new VPReqRejectMessage(
-                id,
-                this.did,
-                [this.peerInfo.did],
-                currentTime,
-                currentTime + 30000,
-                reason,
-            );
-
-            await sendJWE(this.mnemonic, vpReqRejectMessage, this);
-
-            console.log(
-                `VPReqRejectMessage sent to ${this.peerInfo.peerSocketId}, message: ${vpReqRejectMessage}`,
-            );
-        } catch (error) {
-            throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
-        }
-    }
+export interface VPReqCallbackResponse {
+    status: VCHoldingResult;
+    requestedVCs?: VerifiableCredential[];
 }

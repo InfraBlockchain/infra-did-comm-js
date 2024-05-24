@@ -1,12 +1,11 @@
 // socket_io_verifier.ts
 import { config as _config } from "dotenv";
-import { VCRequirement } from "../../src/websocket";
 import {
     createAndEncodeRequestMessage,
     initializeAgent,
     sleep,
+    vcRequirements,
 } from "./common";
-
 _config({ path: __dirname + "/../../.env" });
 
 async function initiateConnectionByVerifier(): Promise<void> {
@@ -26,21 +25,17 @@ async function initiateConnectionByVerifier(): Promise<void> {
         return;
     }
 
-    const requestedVCs: VCRequirement[] = [
-        {
-            VCType: "UniversityDegreeCredential",
-            context: "https://example.org/contexts/university-degree-v1.jsonld",
-            issuer: agent.did,
-        },
-    ];
-
     while (!agent.isDIDConnected) {
-        await sleep(1000);
+        await sleep(500);
     }
-
-    console.log("before sendVPReq");
-    await agent.sendVPReq(requestedVCs);
-    console.log("after sendVPReq");
+    // 1st
+    await agent.sendVPReq(vcRequirements);
+    await sleep(4000);
+    // 2nd
+    await agent.sendVPReq(vcRequirements);
+    await sleep(4000);
+    // 3rd
+    await agent.sendVPReq(vcRequirements);
 }
 
 export async function receiveConnectionInitiatedByHolder(): Promise<void> {
@@ -61,7 +56,6 @@ export async function receiveConnectionInitiatedByHolder(): Promise<void> {
     }
 }
 
-// 5. Execution Code
 async function main(): Promise<void> {
     await initiateConnectionByVerifier();
     // await receiveConnectionInitiatedByHolder();

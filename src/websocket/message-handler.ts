@@ -1,4 +1,4 @@
-import { VerifiablePresentation } from "infra-did-js";
+import { VerifiableCredential, VerifiablePresentation } from "infra-did-js";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -15,7 +15,11 @@ import {
     DIDAuthInitMessage,
     DIDAuthMessage,
     DIDConnectedMessage,
+    VPReqRejectMessage,
     VPReqRejectResMessage,
+    VPSubmitLaterMessage,
+    VPSubmitLaterResMessage,
+    VPSubmitMessage,
     VPSubmitResMessage,
 } from "../messages";
 import {
@@ -32,7 +36,11 @@ import {
     x25519JwkFromMnemonic,
     x25519JwkFromX25519PublicKey,
 } from "../utils";
-import { InfraDIDCommAgent } from "./agent";
+import {
+    InfraDIDCommAgent,
+    VCHoldingResult,
+    VPReqCallbackResponse,
+} from "./agent";
 
 export async function messageHandler(
     jwe: string,
@@ -43,11 +51,16 @@ export async function messageHandler(
     didConnectedCallback?: (peerDID: string) => void,
     didAuthFailedCallback?: (peerDID: string) => void,
     didVerifyCallback?: (peerDID: string) => boolean,
+    VPSubmitDataCallback?: (
+        vcRequirements: VCRequirement[],
+        challenge: string,
+    ) => VPReqCallbackResponse,
 ) {
     try {
         const header = extractJWEHeader(jwe);
         const alg = header["alg"];
         const x25519JwkPrivateKey = x25519JwkFromMnemonic(mnemonic);
+        console.log("------------------------------------------------");
 
         if (alg === "ECDH-ES") {
             if (!header["epk"]) {
@@ -109,9 +122,6 @@ export async function messageHandler(
             if (jwsPayload["type"] === "DIDAuth") {
                 console.log("DIDAuth Message Received");
                 didVerifyCallback(fromDID);
-                agent.isDIDVerified = true;
-                // save domain
-                agent.domain = jwsPayload.body.context.domain;
                 didAuthCallback(fromDID);
                 sendDIDConnectedMessageFromDIDAuthMessage(
                     mnemonic,
@@ -123,6 +133,7 @@ export async function messageHandler(
                 didConnectedCallback(fromDID);
                 agent.isDIDConnected = true;
                 if (agent.role === "VERIFIER") {
+                    console.log("****************************************");
                     sendDIDConnectedMessageFromDIDConnectedMessage(
                         mnemonic,
                         jwsPayload,
@@ -134,55 +145,47 @@ export async function messageHandler(
                 console.log("DIDAuthFailed Message Received");
                 agent.disconnect();
             } else if (jwsPayload["type"] === "VPReq") {
-                agent.VPReqChallenge = jwsPayload.body.challenge;
-                // saveVPReqMessage(mnemonic, jwsPayload, agent);
                 console.log("VPReq Message Received");
-                // vpReqCallback(fromDID);
+                const vcRequirements: VCRequirement[] =
+                    jwsPayload.body.VCRequirements;
+                const challenge = jwsPayload.body.challenge;
+                console.log("before VPSubmitDataCallback", vcRequirements);
+                const vpReqCallbackResponse = VPSubmitDataCallback(
+                    vcRequirements,
+                    challenge,
+                );
+
+                const vcHoldingResult = vpReqCallbackResponse.status;
+
+                if (vpReqCallbackResponse.status === VCHoldingResult.PREPARED) {
+                    const signedVP = await createSignedVP(
+                        agent,
+                        vpReqCallbackResponse.requestedVCs,
+                        challenge,
+                    );
+                    const stringSignedVP = JSON.stringify(signedVP.toJSON());
+                    await sendVPSubmit(agent, stringSignedVP);
+                } else if (vcHoldingResult === VCHoldingResult.LATER) {
+                    await sendVPSubmitLater(agent);
+                } else {
+                    await sendVPReqReject(agent, "hate you");
+                }
             } else if (jwsPayload["type"] === "VPSubmit") {
-                // verifying jwsPayload;
-                const VP = VerifiablePresentation.fromJSON(
-                    JSON.parse(jwsPayload.body.VP),
-                );
-
-                const verifyVPResult = await VP.verify(
-                    agent.infraApi,
-                    agent.infraApi.getChallenge(),
-                    agent.domain,
-                );
-
-                const verifiedVCRequirements = validateVCRequirement(
-                    VP,
-                    agent.VCRequirements,
-                );
-
-                if (!verifyVPResult.verified) {
-                    throw new Error(`failed to verify VP`);
-                }
-
-                if (!verifiedVCRequirements) {
-                    throw new Error(`failed to verify VCRequirements`);
-                }
-
-                sendVPSubmitRes(mnemonic, jwsPayload, agent);
-
-                console.log("VPSubmit Message Received");
-                // vpSubmitCallback(fromDID);
+                console.log("VPSubmit Message Received", jwsPayload);
+                await sendVPSubmitRes(mnemonic, jwsPayload, agent);
             } else if (jwsPayload["type"] === "VPSubmitRes") {
-                console.log("VPSubmitRes Message Received");
-                // vpSubmitResCallback(fromDID);
+                console.log("VPSubmitRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPReqReject") {
-                sendVPReqRejectRes(mnemonic, jwsPayload, agent);
-                console.log("VPReqReject Message Received");
-                // vpReqRejectCallback(fromDID);
+                console.log("VPReqReject Message Received", jwsPayload);
+                await sendVPReqRejectRes(mnemonic, jwsPayload, agent);
             } else if (jwsPayload["type"] === "VPReqRejectRes") {
-                console.log("VPReqRejectRes Message Received");
-                // vpReqRejectResCallback(fromDID);
+                console.log("VPReqRejectRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPSubmitLater") {
-                console.log("VPSubmitLater Message Received");
-                // vpSubmitLaterCallback(fromDID);
+                console.log("VPSubmitLater Message Received", jwsPayload);
+                await sendVPSubmitLaterRes(agent);
             } else if (jwsPayload["type"] === "VPSubmitLaterRes") {
-                console.log("VPSubmitLaterRes Message Received");
-                // vpSubmitLaterResCallback(fromDID);
+                console.log("VPSubmitLaterRes Message Received", jwsPayload);
+                agent.disconnect();
             }
         }
     } catch (e) {
@@ -281,21 +284,23 @@ export async function sendDIDAuthMessage(
 
 export async function sendDIDConnectedMessageFromDIDAuthMessage(
     mnemonic: string,
-    didAuthMessagePayload: any, // Assuming an appropriate interface/type for the payload
+    jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
+        agent.isDIDVerified = true;
+        agent.domain = jwsPayload.body.context.domain;
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
-        const receiverDID = didAuthMessagePayload["from"];
+        const receiverDID = jwsPayload["from"];
 
         const didConnectedMessage = new DIDConnectedMessage(
             id,
-            didAuthMessagePayload["to"][0],
+            jwsPayload["to"][0],
             [receiverDID],
             currentTime,
             currentTime + 30000,
-            didAuthMessagePayload["body"]["context"],
+            jwsPayload["body"]["context"],
             "Successfully Connected",
         );
         const jwe = await createEncryptedJWE(
@@ -305,11 +310,11 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
         );
 
         agent.socket.emit("message", {
-            to: didAuthMessagePayload["body"]["socketId"],
+            to: jwsPayload["body"]["socketId"],
             m: jwe,
         });
         console.log(
-            `DIDConnectedMessage sent to ${didAuthMessagePayload["body"]["socketId"]}`,
+            `DIDConnectedMessage sent to ${jwsPayload["body"]["socketId"]}`,
         );
     } catch (e) {
         console.log("failed to sendDIDConnectedMessageFromDIDAuthMessage", e);
@@ -350,10 +355,7 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
             `DIDConnectedMessage sent to ${agent.peerInfo["socketId"]}`,
         );
     } catch (e) {
-        console.log(
-            "failed to sendDIDConnectedMessageFromDIDConnectedMessage",
-            e,
-        );
+        console.log("failed to send DIDConnectedFromDIDConnected", e);
     }
 }
 
@@ -390,16 +392,134 @@ export async function sendDIDAuthFailedMessage(
             console.log(`DIDAuthFailedMessage sent to ${receiverSocketId}`);
         }
     } catch (e) {
-        console.log("failed to sendDIDAuthFailedMessage", e);
+        console.log("failed to send DIDAuthFailedMessage", e);
+    }
+}
+
+export async function sendVPSubmit(
+    agent: InfraDIDCommAgent,
+    VP: string,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+
+        const vpSubmitMessage = new VPSubmitMessage(
+            id,
+            agent.did,
+            [agent.peerInfo.did],
+            currentTime,
+            currentTime + 30000,
+            VP,
+        );
+
+        await sendJWE(agent, vpSubmitMessage);
+
+        console.log(
+            `VPSubmitMessage sent to ${agent.peerInfo.peerSocketId}, message: ${vpSubmitMessage}`,
+        );
+    } catch (error) {
+        throw new Error(`Failed to send VPSubmit Message: ${error}`);
+    }
+}
+
+export async function sendVPReqReject(
+    agent: InfraDIDCommAgent,
+    reason: string,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+
+        const vpReqRejectMessage = new VPReqRejectMessage(
+            id,
+            agent.did,
+            [agent.peerInfo.did],
+            currentTime,
+            currentTime + 30000,
+            reason,
+        );
+
+        await sendJWE(agent, vpReqRejectMessage);
+    } catch (error) {
+        throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
+    }
+}
+
+export async function sendVPSubmitLater(
+    agent: InfraDIDCommAgent,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+
+        const vpSubmitLaterMessage = new VPSubmitLaterMessage(
+            id,
+            agent.did,
+            [agent.peerInfo.did],
+            currentTime,
+            currentTime + 30000,
+        );
+
+        await sendJWE(agent, vpSubmitLaterMessage);
+    } catch (error) {
+        throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
+    }
+}
+
+export async function sendVPSubmitLaterRes(
+    agent: InfraDIDCommAgent,
+): Promise<void> {
+    try {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const id = uuidv4();
+
+        const vpSubmitLaterResMessage = new VPSubmitLaterResMessage(
+            id,
+            agent.did,
+            [agent.peerInfo.did],
+            currentTime,
+            currentTime + 30000,
+            agent.verifierEndpoint,
+        );
+
+        await sendJWE(agent, vpSubmitLaterResMessage);
+        agent.disconnect();
+    } catch (error) {
+        throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
     }
 }
 
 export async function sendVPSubmitRes(
     mnemonic: string,
-    did: Record<string, any>,
+    jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
+        const VP = VerifiablePresentation.fromJSON(
+            JSON.parse(jwsPayload.body.VP),
+        );
+
+        const verifyVPResult = await VP.verify(
+            agent.infraApi,
+            agent.infraApi.getChallenge(),
+            agent.domain,
+        );
+
+        const verifiedVCRequirements = findMatchingVCRequirements(
+            VP["credentials"],
+            agent.VCRequirements,
+        );
+        console.log("verifiedVCRequirements", verifiedVCRequirements);
+
+        if (!verifyVPResult.verified) {
+            throw new Error(`failed to verify VP`);
+        }
+
+        if (!verifiedVCRequirements.result) {
+            throw new Error(`failed to verify VCRequirements`);
+        }
+
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
         const receiverDID = agent.peerInfo["did"];
@@ -460,14 +580,14 @@ export async function sendVPReqRejectRes(
 }
 
 export async function sendJWE(
-    mnemonic: string,
-    message: any, // Assuming an appropriate interface/type for the payload
     agent: InfraDIDCommAgent,
+    message: Record<string, any>, // Assuming an appropriate interface/type for the payload
 ): Promise<void> {
     try {
+        console.log("message[to]", message["to"]);
         const jwe = await createEncryptedJWE(
             message,
-            mnemonic,
+            agent.mnemonic,
             message["to"][0],
         );
 
@@ -520,29 +640,91 @@ async function createEncryptedJWE(
     }
 }
 
-function validateVCRequirement(
-    signedVP: VerifiablePresentation,
-    vcRequirements: VCRequirement[],
-): boolean {
-    const submittedVCs = signedVP["credentials"];
-    console.log("submittedVCs", submittedVCs);
-
-    // TODO: Add to validate "@context"
-
-    return vcRequirements.every(vcRequirement => {
-        return submittedVCs.some(vpVC => {
-            const VCTypeList: string[] = vpVC["type"];
-            const VCIssuer: string[] = vpVC["issuer"];
-            return (
-                VCTypeList.includes(vcRequirement.VCType) &&
-                VCIssuer.includes(vcRequirement.issuer)
-            );
-        });
+async function createSignedVP(
+    agent: InfraDIDCommAgent,
+    RequestedVCs: VerifiableCredential[],
+    vpReqChallenge: string,
+): Promise<VerifiablePresentation> {
+    const vp = new VerifiablePresentation(
+        "http://university.example/credentials/5228473",
+    );
+    vp.addContext("https://www.w3.org/2018/credentials/examples/v1");
+    vp.addContext("https://schema.org");
+    vp.setHolder(agent.did);
+    RequestedVCs.every(signedVC => {
+        vp.addCredential(signedVC);
     });
+
+    return vp.sign(agent.infraApi, vpReqChallenge, agent.domain);
 }
 
 export class VCRequirement {
-    VCType: string;
-    context: string;
-    issuer: string;
+    vcType: string;
+    issuer?: string;
+    query?: Query;
+}
+
+class Query {
+    selectedClaims: string[];
+}
+
+interface VCsMatchingResult {
+    result: boolean;
+    matchingVCs?: VerifiableCredential[];
+}
+
+export function findMatchingVCRequirements(
+    VCs: VerifiableCredential[],
+    vcRequirements: VCRequirement[],
+): VCsMatchingResult {
+    console.log("VCs", VCs);
+    console.log("vcRequirements", vcRequirements);
+
+    if (
+        !VCs ||
+        VCs.length === 0 ||
+        !vcRequirements ||
+        vcRequirements.length === 0
+    ) {
+        return { result: false };
+    }
+    console.log("Check");
+    console.log("VCS", VCs);
+
+    const matchingVCs = VCs.filter(VC => {
+        const VCTypeList: string[] = VC["@context"] || VC["context"];
+        const VCIssuer: string = VC["issuer"];
+        console.log("VCTypeList", VCTypeList);
+        console.log("VCIssuer", VCIssuer);
+
+        return vcRequirements.some(
+            vcRequirement =>
+                VCTypeList.includes(vcRequirement.vcType) &&
+                VCIssuer.includes(vcRequirement.issuer),
+        );
+    });
+    console.log("matchingVCs", matchingVCs);
+
+    const allRequirementsMet = vcRequirements.every(vcRequirement =>
+        matchingVCs.some(VC => {
+            const VCTypeList: string[] = VC["@context"] || VC["context"];
+            const VCIssuer: string = VC["issuer"];
+            console.log("VCTypeList", VCTypeList);
+            console.log("VCIssuer", VCIssuer);
+
+            return (
+                VCTypeList.includes(vcRequirement.vcType) &&
+                VCIssuer.includes(vcRequirement.issuer)
+            );
+        }),
+    );
+
+    if (allRequirementsMet) {
+        return {
+            result: true,
+            matchingVCs: matchingVCs,
+        };
+    } else {
+        return { result: false };
+    }
 }
