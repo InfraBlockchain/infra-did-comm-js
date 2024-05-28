@@ -1,6 +1,7 @@
 // socket_io_holder.ts
 import { config as _config } from "dotenv";
 import { VerifiableCredential } from "infra-did-js";
+import { sleep } from "../../src/utils/functions";
 import {
     InfraDIDCommAgent,
     VCHoldingResult,
@@ -16,12 +17,11 @@ import {
     holderDid,
     holderMnemonic,
     initializeAgent,
-    sleep,
     vcRequirements,
 } from "./common";
 
 _config({ path: __dirname + "/../../.env" });
-const verifierSocketId = "X_I7KosIWyvDbjIvACyf";
+const verifierSocketId = "3n6_U6BIOXRI35ZCAC1b";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
@@ -41,7 +41,6 @@ export function VPSubmitDataCallback(
     console.log("VP Submit Data Callback, vcRequirements", vcRequirements);
     console.log("VP Submit Data Callback, challenge", challenge);
 
-    // let vpReqCallbackResponse: VPReqCallbackResponse;
     if (isPermitted && vpReqResult.result) {
         return {
             status: VCHoldingResult.PREPARED,

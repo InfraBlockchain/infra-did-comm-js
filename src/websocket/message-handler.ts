@@ -36,11 +36,14 @@ import {
     x25519JwkFromMnemonic,
     x25519JwkFromX25519PublicKey,
 } from "../utils";
+import { sleep } from "../utils/functions";
+import { InfraDIDCommAgent } from "./agent";
 import {
-    InfraDIDCommAgent,
     VCHoldingResult,
+    VCRequirement,
+    VCsMatchingResult,
     VPReqCallbackResponse,
-} from "./agent";
+} from "./types";
 
 export async function messageHandler(
     jwe: string,
@@ -92,7 +95,7 @@ export async function messageHandler(
             };
             agent.isReceivedDIDAuthInit = true;
 
-            sendDIDAuthMessage(mnemonic, verifiedPayload, agent);
+            sendDIDAuth(mnemonic, verifiedPayload, agent);
         } else if (alg === "dir") {
             if (!("did" in agent.peerInfo)) {
                 throw new Error(
@@ -123,18 +126,13 @@ export async function messageHandler(
                 console.log("DIDAuth Message Received");
                 didVerifyCallback(fromDID);
                 didAuthCallback(fromDID);
-                sendDIDConnectedMessageFromDIDAuthMessage(
-                    mnemonic,
-                    jwsPayload,
-                    agent,
-                );
+                sendDIDConnectedFromDIDAuth(mnemonic, jwsPayload, agent);
             } else if (jwsPayload["type"] === "DIDConnected") {
                 console.log("DIDConnected Message Received");
                 didConnectedCallback(fromDID);
                 agent.isDIDConnected = true;
                 if (agent.role === "VERIFIER") {
-                    console.log("****************************************");
-                    sendDIDConnectedMessageFromDIDConnectedMessage(
+                    sendDIDConnectedFromDIDConnected(
                         mnemonic,
                         jwsPayload,
                         agent,
@@ -190,13 +188,13 @@ export async function messageHandler(
         }
     } catch (e) {
         Object.keys(agent.peerInfo).forEach(key => delete agent.peerInfo[key]);
-        sendDIDAuthFailedMessage(mnemonic, did, agent);
+        sendDIDAuthFailed(mnemonic, did, agent);
         agent.disconnect();
         throw new Error(`failed to handle the message: ${e}`);
     }
 }
 
-export async function sendDIDAuthInitMessageToReceiver(
+export async function sendDIDAuthInit(
     message: DIDAuthInitMessage,
     mnemonic: string,
     receiverDID: string,
@@ -244,7 +242,7 @@ export async function sendDIDAuthInitMessageToReceiver(
     }
 }
 
-export async function sendDIDAuthMessage(
+export async function sendDIDAuth(
     mnemonic: string,
     didAuthInitMessagePayload: any,
     agent: InfraDIDCommAgent,
@@ -264,11 +262,7 @@ export async function sendDIDAuthMessage(
             didAuthInitMessagePayload["body"]["peerSocketId"],
             didAuthInitMessagePayload["body"]["socketId"],
         );
-        const jwe = await createEncryptedJWE(
-            didAuthMessage,
-            mnemonic,
-            receiverDID,
-        );
+        const jwe = await createJWE(didAuthMessage, mnemonic, receiverDID);
 
         agent.socket.emit("message", {
             to: didAuthMessage.body.peerSocketId,
@@ -282,7 +276,7 @@ export async function sendDIDAuthMessage(
     }
 }
 
-export async function sendDIDConnectedMessageFromDIDAuthMessage(
+export async function sendDIDConnectedFromDIDAuth(
     mnemonic: string,
     jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
@@ -303,11 +297,7 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
             jwsPayload["body"]["context"],
             "Successfully Connected",
         );
-        const jwe = await createEncryptedJWE(
-            didConnectedMessage,
-            mnemonic,
-            receiverDID,
-        );
+        const jwe = await createJWE(didConnectedMessage, mnemonic, receiverDID);
 
         agent.socket.emit("message", {
             to: jwsPayload["body"]["socketId"],
@@ -321,7 +311,7 @@ export async function sendDIDConnectedMessageFromDIDAuthMessage(
     }
 }
 
-export async function sendDIDConnectedMessageFromDIDConnectedMessage(
+export async function sendDIDConnectedFromDIDConnected(
     mnemonic: string,
     didConnectedMessagePayload: any, // Assuming an appropriate interface/type for the payload
     agent: InfraDIDCommAgent,
@@ -341,7 +331,7 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
             "Successfully Connected",
         );
 
-        const jwe = await createEncryptedJWE(
+        const jwe = await createJWE(
             newDidConnectedMessage,
             mnemonic,
             receiverDID,
@@ -359,11 +349,11 @@ export async function sendDIDConnectedMessageFromDIDConnectedMessage(
     }
 }
 
-export async function sendDIDAuthFailedMessage(
+export async function sendDIDAuthFailed(
     mnemonic: string,
     did: string,
     agent: InfraDIDCommAgent,
-    context?: any, // Assumix`ng an appropriate interface/type for the context
+    context?: any,
 ): Promise<void> {
     try {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -382,7 +372,7 @@ export async function sendDIDAuthFailedMessage(
                 "DID Auth Failed",
             );
 
-            const jwe = await createEncryptedJWE(
+            const jwe = await createJWE(
                 didAuthFailedMessage,
                 mnemonic,
                 receiverDID,
@@ -484,6 +474,9 @@ export async function sendVPSubmitLaterRes(
         );
 
         await sendJWE(agent, vpSubmitLaterResMessage);
+
+        // wait for the disconnection of the counterpart
+        await sleep(3000);
         agent.disconnect();
     } catch (error) {
         throw new Error(`Failed to sendVPReqRejectMessage: ${error}`);
@@ -534,11 +527,7 @@ export async function sendVPSubmitRes(
             "Completed to verify the VP",
         );
 
-        const jwe = await createEncryptedJWE(
-            vpSubmitResMessage,
-            mnemonic,
-            receiverDID,
-        );
+        const jwe = await createJWE(vpSubmitResMessage, mnemonic, receiverDID);
 
         agent.socket.emit("message", { to: receiverSocketId, m: jwe });
         console.log(`VPSubmitResMessage sent to ${receiverSocketId}`);
@@ -566,11 +555,7 @@ export async function sendVPReqRejectRes(
             currentTime + 30000,
         );
 
-        const jwe = await createEncryptedJWE(
-            vpSubmitResMessage,
-            mnemonic,
-            receiverDID,
-        );
+        const jwe = await createJWE(vpSubmitResMessage, mnemonic, receiverDID);
 
         agent.socket.emit("message", { to: receiverSocketId, m: jwe });
         console.log(`VPReqRejectResMessage sent to ${receiverSocketId}`);
@@ -581,15 +566,11 @@ export async function sendVPReqRejectRes(
 
 export async function sendJWE(
     agent: InfraDIDCommAgent,
-    message: Record<string, any>, // Assuming an appropriate interface/type for the payload
+    message: Record<string, any>,
 ): Promise<void> {
     try {
         console.log("message[to]", message["to"]);
-        const jwe = await createEncryptedJWE(
-            message,
-            agent.mnemonic,
-            message["to"][0],
-        );
+        const jwe = await createJWE(message, agent.mnemonic, message["to"][0]);
 
         agent.socket.emit("message", {
             to: agent.peerInfo["socketId"],
@@ -604,7 +585,7 @@ export async function sendJWE(
     }
 }
 
-async function createEncryptedJWE(
+async function createJWE(
     message: Record<string, any>,
     mnemonic: string,
     receiverDID: string,
@@ -636,7 +617,7 @@ async function createEncryptedJWE(
 
         return jwe;
     } catch (e) {
-        console.log("failed to createEncryptedJWE", e);
+        console.log("failed to createJWE", e);
     }
 }
 
@@ -656,21 +637,6 @@ async function createSignedVP(
     });
 
     return vp.sign(agent.infraApi, vpReqChallenge, agent.domain);
-}
-
-export class VCRequirement {
-    vcType: string;
-    issuer?: string;
-    query?: Query;
-}
-
-class Query {
-    selectedClaims: string[];
-}
-
-interface VCsMatchingResult {
-    result: boolean;
-    matchingVCs?: VerifiableCredential[];
 }
 
 export function findMatchingVCRequirements(

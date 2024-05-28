@@ -1,5 +1,4 @@
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import "@polkadot/wasm-crypto/initWasmAsm";
 import { io, Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -9,15 +8,11 @@ import {
     VPReqMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
-import {
-    messageHandler,
-    sendDIDAuthInitMessageToReceiver,
-    sendJWE,
-    VCRequirement,
-} from "./message-handler";
+import { messageHandler, sendDIDAuthInit, sendJWE } from "./message-handler";
 
-import { CRYPTO_INFO, InfraSS58, VerifiableCredential } from "infra-did-js";
+import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
 import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
+import { VCRequirement, VPReqCallbackResponse } from "./types";
 
 export class InfraDIDCommAgent {
     did: string;
@@ -34,9 +29,8 @@ export class InfraDIDCommAgent {
     isDIDVerified: boolean = false;
     isReceivedDIDAuthInit: boolean = false;
 
-    // VC VP related
+    // VP related
     VCRequirements: VCRequirement[];
-    VPReqChallenge: string = "";
     infraApi: InfraSS58;
     didChainEndpoint = "";
 
@@ -131,7 +125,7 @@ export class InfraDIDCommAgent {
         await cryptoWaitReady();
         const txfeePayerAccountKeyPair = await InfraSS58.getKeyringPairFromUri(
             this.mnemonic,
-            "sr25519",
+            "ed25519",
         );
         const edKeyPair = await InfraSS58.getKeyringPairFromUri(
             this.mnemonic,
@@ -234,7 +228,7 @@ export class InfraDIDCommAgent {
                 mySocketId,
                 peerSocketId,
             );
-            const message = await sendDIDAuthInitMessageToReceiver(
+            const message = await sendDIDAuthInit(
                 didAuthInitMessage,
                 this.mnemonic,
                 receiverDID,
@@ -250,6 +244,7 @@ export class InfraDIDCommAgent {
             throw new Error(`Failed to sendDIDAuthInitMessage: ${error}`);
         }
     }
+
     async sendVPReq(VCRequirements: VCRequirement[]): Promise<void> {
         try {
             const currentTime = Math.floor(Date.now() / 1000);
@@ -272,15 +267,4 @@ export class InfraDIDCommAgent {
             throw new Error(`Failed to send sendVPReq Message: ${error}`);
         }
     }
-}
-
-export enum VCHoldingResult {
-    PREPARED = "prepared",
-    LATER = "later",
-    DENIED = "denied",
-}
-
-export interface VPReqCallbackResponse {
-    status: VCHoldingResult;
-    requestedVCs?: VerifiableCredential[];
 }

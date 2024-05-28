@@ -1,9 +1,9 @@
 // socket_io_verifier.ts
 import { config as _config } from "dotenv";
+import { sleep } from "../../src/utils/functions";
 import {
     createAndEncodeRequestMessage,
     initializeAgent,
-    sleep,
     vcRequirements,
 } from "./common";
 _config({ path: __dirname + "/../../.env" });
