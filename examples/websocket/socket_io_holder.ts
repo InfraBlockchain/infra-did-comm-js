@@ -20,7 +20,7 @@ import {
     vcRequirements,
 } from "./common";
 
-const verifierSocketId = "G35_eLmp23nKkPQzAC5J";
+const verifierSocketId = "C2IPE08_ZHHVTvwdAC9p";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 

@@ -144,30 +144,7 @@ export async function messageHandler(
                 console.log("DIDAuthFailed Message Received");
                 agent.disconnect();
             } else if (jwsPayload["type"] === "VPReq") {
-                console.log("VPReq Message Received");
-                const vcRequirements: VCRequirement[] =
-                    jwsPayload.body.VCRequirements;
-                const challenge = jwsPayload.body.challenge;
-                const vpReqCallbackResponse = VPSubmitDataCallback(
-                    vcRequirements,
-                    challenge,
-                );
-
-                const vcHoldingResult = vpReqCallbackResponse.status;
-
-                if (vpReqCallbackResponse.status === VCHoldingResult.PREPARED) {
-                    const signedVP = await createSignedVP(
-                        agent,
-                        vpReqCallbackResponse.requestedVCs,
-                        challenge,
-                    );
-                    const stringSignedVP = JSON.stringify(signedVP.toJSON());
-                    await sendVPSubmit(agent, stringSignedVP);
-                } else if (vcHoldingResult === VCHoldingResult.LATER) {
-                    await sendVPSubmitLater(agent);
-                } else {
-                    await sendVPReqReject(agent, "hate you");
-                }
+                await handleVPReq(jwsPayload, agent, VPSubmitDataCallback);
             } else if (jwsPayload["type"] === "VPSubmit") {
                 console.log("VPSubmit Message Received", jwsPayload);
                 await sendVPSubmitRes(mnemonic, jwsPayload, agent);
@@ -410,6 +387,39 @@ export async function sendVPSubmit(
         );
     } catch (error) {
         throw new Error(`Failed to send VPSubmit Message: ${error}`);
+    }
+}
+
+async function handleVPReq(
+    jwsPayload: Record<string, any>,
+    agent: InfraDIDCommAgent,
+    VPSubmitDataCallback: (
+        vcRequirements: VCRequirement[],
+        challenge: string,
+    ) => VPReqCallbackResponse,
+) {
+    console.log("VPReq Message Received");
+    const vcRequirements: VCRequirement[] = jwsPayload.body.VCRequirements;
+    const challenge = jwsPayload.body.challenge;
+    const vpReqCallbackResponse = VPSubmitDataCallback(
+        vcRequirements,
+        challenge,
+    );
+
+    const vcHoldingResult = vpReqCallbackResponse.status;
+
+    if (vpReqCallbackResponse.status === VCHoldingResult.PREPARED) {
+        const signedVP = await createSignedVP(
+            agent,
+            vpReqCallbackResponse.requestedVCs,
+            challenge,
+        );
+        const stringSignedVP = JSON.stringify(signedVP.toJSON());
+        await sendVPSubmit(agent, stringSignedVP);
+    } else if (vcHoldingResult === VCHoldingResult.LATER) {
+        await sendVPSubmitLater(agent);
+    } else {
+        await sendVPReqReject(agent, "hate you");
     }
 }
 

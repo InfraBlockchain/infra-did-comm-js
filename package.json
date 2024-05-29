@@ -1,6 +1,6 @@
 {
     "name": "infra-did-comm-js",
-    "version": "0.5.0",
+    "version": "0.7.0",
     "description": "Communication Protocol using Infra DID",
     "source": "src/index.ts",
     "main": "dist/src/index.cjs",
@@ -73,7 +73,6 @@
     "packageManager": "yarn@4.1.1",
     "dependencies": {
         "@polkadot/api": "9.7.1",
-        "@polkadot/ui-keyring": "^3.6.6",
         "@stablelib/base64": "^1.0.1",
         "@stablelib/ed25519": "^1.0.3",
         "@stablelib/x25519": "^1.0.3",
