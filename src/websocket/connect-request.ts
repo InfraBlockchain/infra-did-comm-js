@@ -50,7 +50,7 @@ export async function connectRequestStatic(
     verifierDID?: string,
 ) {
     try {
-        agent.connect();
+        await agent.init();
 
         if (verifierDID) {
             agent.didVerifyCallback(verifierDID);

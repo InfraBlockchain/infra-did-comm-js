@@ -151,7 +151,7 @@ export class InfraDIDCommAgent {
     }
 
     async initReceivingConnectRequest(encoded: string): Promise<void> {
-        this.init();
+        await this.init();
         await this.sendDIDAuthInitMessage(encoded);
     }
 
@@ -168,6 +168,7 @@ export class InfraDIDCommAgent {
         timeout: number,
         callback: (message: string) => void,
     ): Promise<void> {
+        await this.setupInfraApi();
         await connectRequestDynamic(this, context, timeout, callback);
     }
 

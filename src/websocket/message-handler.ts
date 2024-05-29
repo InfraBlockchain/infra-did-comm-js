@@ -94,6 +94,7 @@ export async function messageHandler(
                 socketId: verifiedPayload["body"]["socketId"],
             };
             agent.isReceivedDIDAuthInit = true;
+            agent.domain = verifiedPayload.body.context.domain;
 
             sendDIDAuth(mnemonic, verifiedPayload, agent);
         } else if (alg === "dir") {
@@ -147,7 +148,6 @@ export async function messageHandler(
                 const vcRequirements: VCRequirement[] =
                     jwsPayload.body.VCRequirements;
                 const challenge = jwsPayload.body.challenge;
-                console.log("before VPSubmitDataCallback", vcRequirements);
                 const vpReqCallbackResponse = VPSubmitDataCallback(
                     vcRequirements,
                     challenge,
@@ -175,7 +175,7 @@ export async function messageHandler(
                 console.log("VPSubmitRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPReqReject") {
                 console.log("VPReqReject Message Received", jwsPayload);
-                await sendVPReqRejectRes(mnemonic, jwsPayload, agent);
+                await sendVPReqRejectRes(mnemonic, agent);
             } else if (jwsPayload["type"] === "VPReqRejectRes") {
                 console.log("VPReqRejectRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPSubmitLater") {
@@ -313,21 +313,21 @@ export async function sendDIDConnectedFromDIDAuth(
 
 export async function sendDIDConnectedFromDIDConnected(
     mnemonic: string,
-    didConnectedMessagePayload: any, // Assuming an appropriate interface/type for the payload
+    jwsPayload: Record<string, any>, // Assuming an appropriate interface/type for the payload
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
-        const receiverDID = didConnectedMessagePayload["from"];
+        const receiverDID = jwsPayload["from"];
 
         const newDidConnectedMessage = new DIDConnectedMessage(
             id,
-            didConnectedMessagePayload["to"][0],
+            jwsPayload["to"][0],
             [receiverDID],
             currentTime,
             currentTime + 30000,
-            didConnectedMessagePayload["body"]["context"],
+            jwsPayload["body"]["context"],
             "Successfully Connected",
         );
 
@@ -503,7 +503,6 @@ export async function sendVPSubmitRes(
             VP["credentials"],
             agent.VCRequirements,
         );
-        console.log("verifiedVCRequirements", verifiedVCRequirements);
 
         if (!verifyVPResult.verified) {
             throw new Error(`failed to verify VP`);
@@ -538,7 +537,6 @@ export async function sendVPSubmitRes(
 
 export async function sendVPReqRejectRes(
     mnemonic: string,
-    payload: Record<string, any>,
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
@@ -569,7 +567,6 @@ export async function sendJWE(
     message: Record<string, any>,
 ): Promise<void> {
     try {
-        console.log("message[to]", message["to"]);
         const jwe = await createJWE(message, agent.mnemonic, message["to"][0]);
 
         agent.socket.emit("message", {
@@ -626,26 +623,33 @@ async function createSignedVP(
     RequestedVCs: VerifiableCredential[],
     vpReqChallenge: string,
 ): Promise<VerifiablePresentation> {
-    const vp = new VerifiablePresentation(
-        "http://university.example/credentials/5228473",
-    );
-    vp.addContext("https://www.w3.org/2018/credentials/examples/v1");
-    vp.addContext("https://schema.org");
-    vp.setHolder(agent.did);
-    RequestedVCs.every(signedVC => {
-        vp.addCredential(signedVC);
-    });
+    try {
+        const vp = new VerifiablePresentation(
+            "http://university.example/credentials/5228473",
+        );
+        vp.addContext("https://www.w3.org/2018/credentials/examples/v1");
 
-    return vp.sign(agent.infraApi, vpReqChallenge, agent.domain);
+        vp.addContext("https://schema.org");
+        vp.setHolder(agent.did);
+        RequestedVCs.forEach(signedVC => {
+            vp.addCredential(signedVC);
+        });
+
+        const signedVP = await vp.sign(
+            agent.infraApi,
+            vpReqChallenge,
+            agent.domain,
+        );
+        return signedVP;
+    } catch (error) {
+        console.error("Error adding credential: ", error);
+    }
 }
 
 export function findMatchingVCRequirements(
     VCs: VerifiableCredential[],
     vcRequirements: VCRequirement[],
 ): VCsMatchingResult {
-    console.log("VCs", VCs);
-    console.log("vcRequirements", vcRequirements);
-
     if (
         !VCs ||
         VCs.length === 0 ||
@@ -654,34 +658,19 @@ export function findMatchingVCRequirements(
     ) {
         return { result: false };
     }
-    console.log("Check");
-    console.log("VCS", VCs);
 
     const matchingVCs = VCs.filter(VC => {
-        const VCTypeList: string[] = VC["@context"] || VC["context"];
-        const VCIssuer: string = VC["issuer"];
-        console.log("VCTypeList", VCTypeList);
-        console.log("VCIssuer", VCIssuer);
+        const VCTypes: string[] = VC["@context"] || VC["context"];
 
-        return vcRequirements.some(
-            vcRequirement =>
-                VCTypeList.includes(vcRequirement.vcType) &&
-                VCIssuer.includes(vcRequirement.issuer),
+        return vcRequirements.some(vcRequirement =>
+            VCTypes.includes(vcRequirement.vcType),
         );
     });
-    console.log("matchingVCs", matchingVCs);
 
     const allRequirementsMet = vcRequirements.every(vcRequirement =>
         matchingVCs.some(VC => {
-            const VCTypeList: string[] = VC["@context"] || VC["context"];
-            const VCIssuer: string = VC["issuer"];
-            console.log("VCTypeList", VCTypeList);
-            console.log("VCIssuer", VCIssuer);
-
-            return (
-                VCTypeList.includes(vcRequirement.vcType) &&
-                VCIssuer.includes(vcRequirement.issuer)
-            );
+            const VCTypes: string[] = VC["@context"] || VC["context"];
+            return VCTypes.includes(vcRequirement.vcType);
         }),
     );
 

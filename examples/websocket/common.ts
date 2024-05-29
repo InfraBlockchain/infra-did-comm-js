@@ -7,6 +7,8 @@ export const verifierDID =
     "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
 // "did:infra:space:15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5";
 
+export const DID_CHAIN_ENDPOINT = "wss://did.stage.infrablockspace.net";
+
 const issuerDID =
     "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
 
@@ -40,7 +42,7 @@ export async function initializeAgent(
         verifierDID,
         mnemonic,
         role,
-        process.env.DID_CHAIN_ENDPOINT,
+        DID_CHAIN_ENDPOINT,
     );
 
     agent.setDIDAuthCallback(didAuthCallback);

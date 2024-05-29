@@ -1,8 +1,7 @@
-import { config as _config } from "dotenv";
 import { Context } from "../../src/messages/commons";
 import { connectRequestDynamic } from "../../src/websocket/connect-request";
 import { InfraDIDCommAgent } from "../../src/websocket/index";
-_config({ path: __dirname + "/../../.env" });
+import { DID_CHAIN_ENDPOINT } from "./common";
 
 async function dynamic_qr_works() {
     const mnemonic =
@@ -13,7 +12,7 @@ async function dynamic_qr_works() {
         did,
         mnemonic,
         "VERIFIER",
-        process.env.DID_CHAIN_ENDPOINT,
+        DID_CHAIN_ENDPOINT,
     );
     const context = new Context("newnal", "connect");
     await connectRequestDynamic(client, context, 2, message => {

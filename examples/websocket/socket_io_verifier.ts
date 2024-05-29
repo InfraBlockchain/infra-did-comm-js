@@ -1,12 +1,11 @@
 // socket_io_verifier.ts
-import { config as _config } from "dotenv";
+
 import { sleep } from "../../src/utils/functions";
 import {
     createAndEncodeRequestMessage,
     initializeAgent,
     vcRequirements,
 } from "./common";
-_config({ path: __dirname + "/../../.env" });
 
 async function initiateConnectionByVerifier(): Promise<void> {
     const agent = await initializeAgent("VERIFIER");

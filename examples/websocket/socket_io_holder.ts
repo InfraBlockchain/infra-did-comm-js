@@ -1,5 +1,4 @@
 // socket_io_holder.ts
-import { config as _config } from "dotenv";
 import { VerifiableCredential } from "infra-did-js";
 import { sleep } from "../../src/utils/functions";
 import {
@@ -10,6 +9,7 @@ import {
     findMatchingVCRequirements,
 } from "../../src/websocket";
 import {
+    DID_CHAIN_ENDPOINT,
     createAndEncodeRequestMessage,
     didAuthCallback,
     didAuthFailedCallback,
@@ -20,8 +20,7 @@ import {
     vcRequirements,
 } from "./common";
 
-_config({ path: __dirname + "/../../.env" });
-const verifierSocketId = "3n6_U6BIOXRI35ZCAC1b";
+const verifierSocketId = "G35_eLmp23nKkPQzAC5J";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
@@ -55,26 +54,6 @@ export function VPSubmitDataCallback(
     }
 }
 
-// Agent Initialization Holder
-export async function initializeAgentMockVCsHolder(): Promise<InfraDIDCommAgent> {
-    const agent = new InfraDIDCommAgent(
-        "http://data-market.test.newnal.com:9000",
-        holderDid,
-        holderMnemonic,
-        "HOLDER",
-        process.env.DID_CHAIN_ENDPOINT,
-    );
-
-    agent.setDIDAuthCallback(didAuthCallback);
-    agent.setDIDConnectedCallback(didConnectedCallback);
-    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
-    agent.setVPSubmitDataCallback(VPSubmitDataCallback);
-
-    await agent.init();
-
-    return agent;
-}
-
 async function initiateConnectionByHolder(): Promise<void> {
     const agent = await initializeAgent("HOLDER");
     const socketId = await agent.socketId;
@@ -101,7 +80,7 @@ export async function mockVCsFromVCRequirements(
         holderDid,
         holderMnemonic,
         "HOLDER",
-        process.env.DID_CHAIN_ENDPOINT,
+        DID_CHAIN_ENDPOINT,
     );
     await mockAgent.init();
 
@@ -138,7 +117,7 @@ async function receiveConnectionInitiatedByVerifier(): Promise<void> {
         did,
         mnemonic,
         "HOLDER",
-        process.env.DID_CHAIN_ENDPOINT,
+        DID_CHAIN_ENDPOINT,
     );
 
     agent.setDIDAuthCallback(didAuthCallback);
