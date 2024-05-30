@@ -7,7 +7,7 @@ export class VPSubmitMessage {
     createdTime: number;
     expiresTime: number;
     body: {
-        VP: string;
+        vp: string;
     };
 
     /**
@@ -26,7 +26,7 @@ export class VPSubmitMessage {
         to: string[],
         createdTime: number,
         expiresTime: number,
-        VP: string,
+        vp: string,
         ack?: string[],
     ) {
         this.id = id;
@@ -35,7 +35,7 @@ export class VPSubmitMessage {
         this.createdTime = createdTime;
         this.expiresTime = expiresTime;
         this.body = {
-            VP,
+            vp,
         };
         if (ack) {
             this.ack = ack;

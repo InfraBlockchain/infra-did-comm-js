@@ -85,7 +85,6 @@ export async function createConnectRequestMessage(
         socketId: await agent.socketId,
     });
     return new DIDConnectRequestMessage(
-        "DIDConnectReq",
         agent.did,
         currentTime,
         currentTime + 30000,

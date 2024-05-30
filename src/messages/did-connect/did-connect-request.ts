@@ -6,7 +6,7 @@ import { deflateAndEncode, inflateAndDecode } from "../../utils/coding";
 import { Context, Initiator } from "../commons";
 
 export class DIDConnectRequestMessage {
-    type: string;
+    type: string = "DIDConnectReq";
     from: string;
     createdTime: number;
     expiresTime: number;
@@ -24,14 +24,12 @@ export class DIDConnectRequestMessage {
      * @param {Object} context - The context details.
      */
     constructor(
-        type: string,
         from: string,
         createdTime: number,
         expiresTime: number,
         initiator: Initiator,
         context: Context,
     ) {
-        this.type = type;
         this.from = from;
         this.createdTime = createdTime;
         this.expiresTime = expiresTime;
@@ -124,7 +122,6 @@ export class DIDConnectRequestMessage {
         }
 
         return new DIDConnectRequestMessage(
-            json.type,
             json.from,
             json.createdTime,
             json.expiresTime,
