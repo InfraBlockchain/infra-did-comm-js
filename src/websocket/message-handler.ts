@@ -58,6 +58,7 @@ export async function messageHandler(
         vcRequirements: VCRequirement[],
         challenge: string,
     ) => VPReqCallbackResponse,
+    VPVerifyCallback?: (issuer: string[]) => boolean,
 ) {
     try {
         const header = extractJWEHeader(jwe);
@@ -147,7 +148,12 @@ export async function messageHandler(
                 await handleVPReq(jwsPayload, agent, VPSubmitDataCallback);
             } else if (jwsPayload["type"] === "VPSubmit") {
                 console.log("VPSubmit Message Received", jwsPayload);
-                await sendVPSubmitRes(mnemonic, jwsPayload, agent);
+                await sendVPSubmitRes(
+                    mnemonic,
+                    jwsPayload,
+                    agent,
+                    VPVerifyCallback,
+                );
             } else if (jwsPayload["type"] === "VPSubmitRes") {
                 console.log("VPSubmitRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPReqReject") {
@@ -399,7 +405,7 @@ async function handleVPReq(
     ) => VPReqCallbackResponse,
 ) {
     console.log("VPReq Message Received");
-    const vcRequirements: VCRequirement[] = jwsPayload.body.VCRequirements;
+    const vcRequirements: VCRequirement[] = jwsPayload.body.vcRequirements;
     const challenge = jwsPayload.body.challenge;
     const vpReqCallbackResponse = VPSubmitDataCallback(
         vcRequirements,
@@ -408,7 +414,7 @@ async function handleVPReq(
 
     const vcHoldingResult = vpReqCallbackResponse.status;
 
-    if (vpReqCallbackResponse.status === VCHoldingResult.PREPARED) {
+    if (vpReqCallbackResponse.status === VCHoldingResult.SUBMIT) {
         const signedVP = await createSignedVP(
             agent,
             vpReqCallbackResponse.requestedVCs,
@@ -416,10 +422,10 @@ async function handleVPReq(
         );
         const stringSignedVP = JSON.stringify(signedVP.toJSON());
         await sendVPSubmit(agent, stringSignedVP);
-    } else if (vcHoldingResult === VCHoldingResult.LATER) {
+    } else if (vcHoldingResult === VCHoldingResult.SUBMIT_LATER) {
         await sendVPSubmitLater(agent);
     } else {
-        await sendVPReqReject(agent, "hate you");
+        await sendVPReqReject(agent, "Not Permissioned");
     }
 }
 
@@ -497,6 +503,7 @@ export async function sendVPSubmitRes(
     mnemonic: string,
     jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
+    VPVerifyCallback: (issuer: string[]) => boolean,
 ): Promise<void> {
     try {
         const VP = VerifiablePresentation.fromJSON(
@@ -511,7 +518,7 @@ export async function sendVPSubmitRes(
 
         const verifiedVCRequirements = findMatchingVCRequirements(
             VP["credentials"],
-            agent.VCRequirements,
+            agent.vcRequirements,
         );
 
         if (!verifyVPResult.verified) {
@@ -519,7 +526,7 @@ export async function sendVPSubmitRes(
         }
 
         if (!verifiedVCRequirements.result) {
-            throw new Error(`failed to verify VCRequirements`);
+            throw new Error(`failed to verify vcRequirements`);
         }
 
         const currentTime = Math.floor(Date.now() / 1000);
@@ -535,6 +542,8 @@ export async function sendVPSubmitRes(
             currentTime + 30000,
             "Completed to verify the VP",
         );
+
+        VPVerifyCallback([agent.did]);
 
         const jwe = await createJWE(vpSubmitResMessage, mnemonic, receiverDID);
 

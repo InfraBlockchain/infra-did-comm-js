@@ -6,7 +6,7 @@ export class VPSubmitLaterMessage {
     ack?: string[];
     createdTime: number;
     expiresTime: number;
-    body: {};
+    body: object;
 
     /**
      * Creates a new VPSubmitLaterMessage instance.

@@ -8,7 +8,7 @@ export class VPReqMessage {
     createdTime: number;
     expiresTime: number;
     body: {
-        VCRequirements: VCRequirement[];
+        vcRequirements: VCRequirement[];
         challenge: string;
     };
 
@@ -29,7 +29,7 @@ export class VPReqMessage {
         to: string[],
         createdTime: number,
         expiresTime: number,
-        VCRequirements: VCRequirement[],
+        vcRequirements: VCRequirement[],
         challenge: string,
     ) {
         this.id = id;
@@ -38,7 +38,7 @@ export class VPReqMessage {
         this.createdTime = createdTime;
         this.expiresTime = expiresTime;
         this.body = {
-            VCRequirements,
+            vcRequirements,
             challenge,
         };
     }

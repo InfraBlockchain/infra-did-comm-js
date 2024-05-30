@@ -1,5 +1,6 @@
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { io, Socket } from "socket.io-client";
+import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
+import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -8,10 +9,8 @@ import {
     VPReqMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
-import { messageHandler, sendDIDAuthInit, sendJWE } from "./message-handler";
-
-import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
 import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
+import { messageHandler, sendDIDAuthInit, sendJWE } from "./message-handler";
 import { VCRequirement, VPReqCallbackResponse } from "./types";
 
 export class InfraDIDCommAgent {
@@ -30,7 +29,7 @@ export class InfraDIDCommAgent {
     isReceivedDIDAuthInit: boolean = false;
 
     // VP related
-    VCRequirements: VCRequirement[];
+    vcRequirements: VCRequirement[];
     infraApi: InfraSS58;
     didChainEndpoint = "";
 
@@ -246,12 +245,12 @@ export class InfraDIDCommAgent {
         }
     }
 
-    async sendVPReq(VCRequirements: VCRequirement[]): Promise<void> {
+    async sendVPReq(vcRequirements: VCRequirement[]): Promise<void> {
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const id = uuidv4();
 
-            this.VCRequirements = VCRequirements;
+            this.vcRequirements = vcRequirements;
 
             const vpReqMessage = new VPReqMessage(
                 id,
@@ -259,7 +258,7 @@ export class InfraDIDCommAgent {
                 [this.peerInfo.did],
                 currentTime,
                 currentTime + 30000,
-                VCRequirements,
+                vcRequirements,
                 this.infraApi.getChallenge(),
             );
 

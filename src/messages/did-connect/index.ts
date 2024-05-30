@@ -8,6 +8,6 @@ export {
     DIDAuthFailedMessage,
     DIDAuthInitMessage,
     DIDAuthMessage,
-    DIDConnectRequestMessage,
     DIDConnectedMessage,
+    DIDConnectRequestMessage,
 };

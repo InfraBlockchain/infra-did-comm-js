@@ -6,7 +6,7 @@ export class VPReqRejectResMessage {
     ack?: string[];
     createdTime: number;
     expiresTime: number;
-    body: {};
+    body: object;
 
     /**
      * Creates a new VPReqRejectResMessage instance.
@@ -25,7 +25,7 @@ export class VPReqRejectResMessage {
         createdTime: number,
         expiresTime: number,
         ack?: string[],
-    ) {
+    ) { 
         this.id = id;
         this.from = from;
         this.to = to;

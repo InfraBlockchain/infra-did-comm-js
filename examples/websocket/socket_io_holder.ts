@@ -20,7 +20,7 @@ import {
     vcRequirements,
 } from "./common";
 
-const verifierSocketId = "C2IPE08_ZHHVTvwdAC9p";
+const verifierSocketId = "_TVb6c1uhp9unFgOAC91";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
@@ -42,14 +42,14 @@ export function VPSubmitDataCallback(
 
     if (isPermitted && vpReqResult.result) {
         return {
-            status: VCHoldingResult.PREPARED,
+            status: VCHoldingResult.SUBMIT,
             requestedVCs: vpReqResult.matchingVCs,
         };
     } else {
         if (isPermitted) {
-            return { status: VCHoldingResult.LATER };
+            return { status: VCHoldingResult.SUBMIT_LATER };
         } else {
-            return { status: VCHoldingResult.DENIED };
+            return { status: VCHoldingResult.REJECTED };
         }
     }
 }

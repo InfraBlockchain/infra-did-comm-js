@@ -55,7 +55,7 @@ export class DIDConnectedMessage {
             createdTime: this.createdTime,
             expiresTime: this.expiresTime,
             body: {
-                context: this.body.context.toJson(), // assuming Context has a toJson method
+                context: this.body.context.toJson(),
                 status: this.body.status,
             },
         };

@@ -16,9 +16,9 @@ export interface VCsMatchingResult {
 }
 
 export enum VCHoldingResult {
-    PREPARED = "prepared",
-    LATER = "later",
-    DENIED = "denied",
+    SUBMIT = "submit",
+    SUBMIT_LATER = "submitLater",
+    REJECTED = "rejected",
 }
 
 export interface VPReqCallbackResponse {
