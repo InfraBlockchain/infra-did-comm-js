@@ -1,6 +1,7 @@
 import { Context } from "../../src/messages/commons";
 import { connectRequestDynamic } from "../../src/websocket/connect-request";
 import { InfraDIDCommAgent } from "../../src/websocket/index";
+import { DID_CHAIN_ENDPOINT } from "./common";
 
 async function dynamic_qr_works() {
     const mnemonic =
@@ -11,6 +12,7 @@ async function dynamic_qr_works() {
         did,
         mnemonic,
         "VERIFIER",
+        DID_CHAIN_ENDPOINT,
     );
     const context = new Context("newnal", "connect");
     await connectRequestDynamic(client, context, 2, message => {

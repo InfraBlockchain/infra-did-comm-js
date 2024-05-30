@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { CompressionLevel, DIDConnectRequestMessage } from "../messages";
 import { Context, Initiator } from "../messages/commons";
+import { sleep } from "../utils/functions";
 import { InfraDIDCommAgent } from "./index";
 
 /**
@@ -49,7 +50,7 @@ export async function connectRequestStatic(
     verifierDID?: string,
 ) {
     try {
-        agent.connect();
+        await agent.init();
 
         if (verifierDID) {
             agent.didVerifyCallback(verifierDID);
@@ -84,22 +85,10 @@ export async function createConnectRequestMessage(
         socketId: await agent.socketId,
     });
     return new DIDConnectRequestMessage(
-        "DIDConnectReq",
         agent.did,
         currentTime,
         currentTime + 30000,
         initiator,
         context,
     );
-}
-
-/**
- * Pauses execution for a specified amount of time.
- *
- * @param {number} time - The duration of the pause.
- * @param {'ms' | 's'} unit - The unit of time for the duration ('ms' for milliseconds, 's' for seconds). Defaults to 'ms'.
- * @returns {Promise<void>} A promise that resolves after the specified duration.
- */
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }

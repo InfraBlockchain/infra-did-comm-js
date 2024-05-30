@@ -1,56 +1,68 @@
 // socket_io_holder.ts
+import { VerifiableCredential } from "infra-did-js";
+import { sleep } from "../../src/utils/functions";
 import {
-    CompressionLevel,
-    DIDConnectRequestMessage,
-} from "../../src/messages/did-connect-request";
-import { InfraDIDCommAgent } from "../../src/websocket";
+    InfraDIDCommAgent,
+    VCHoldingResult,
+    VCRequirement,
+    VPReqCallbackResponse,
+    findMatchingVCRequirements,
+} from "../../src/websocket";
+import {
+    DID_CHAIN_ENDPOINT,
+    createAndEncodeRequestMessage,
+    didAuthCallback,
+    didAuthFailedCallback,
+    didConnectedCallback,
+    holderDid,
+    holderMnemonic,
+    initializeAgent,
+    vcRequirements,
+} from "./common";
 
-function didAuthCallback(peerDID: string): boolean {
-    console.log("DID Auth Callback", peerDID);
-    return true;
-}
+const verifierSocketId = "TcxmeCPmLlJ9GL_bAC-t";
+let isPermitted = true;
+let mockVCRepository: VerifiableCredential[];
 
-function didConnectedCallback(peerDID: string): void {
-    console.log("DID Connected Callback", peerDID);
-}
+export function VPSubmitDataCallback(
+    vcRequirements: VCRequirement[],
+    challenge: string,
+): VPReqCallbackResponse {
+    const vcRepository = mockVCRepository;
+    // allow all verifiers
 
-function didAuthFailedCallback(peerDID: string): void {
-    console.log("DID Auth Failed Callback", peerDID);
-}
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-async function initiateConnectionByHolder(): Promise<void> {
-    const mnemonic =
-        "bamboo absorb chief dog box envelope leisure pink alone service spin more";
-    const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
-    const agent = new InfraDIDCommAgent(
-        "http://data-market.test.newnal.com:9000",
-        did,
-        mnemonic,
-        "HOLDER",
+    const vpReqResult = findMatchingVCRequirements(
+        vcRepository,
+        vcRequirements,
     );
+    console.log("isVCRequirements", vpReqResult);
 
-    agent.setDIDAuthCallback(didAuthCallback);
-    agent.setDIDConnectedCallback(didConnectedCallback);
-    agent.setDIDAuthFailedCallback(didAuthFailedCallback);
+    console.log("VP Submit Data Callback, vcRequirements", vcRequirements);
+    console.log("VP Submit Data Callback, challenge", challenge);
 
-    agent.init();
+    if (isPermitted && vpReqResult.result) {
+        return {
+            status: VCHoldingResult.SUBMIT,
+            requestedVCs: vpReqResult.matchingVCs,
+        };
+    } else {
+        if (isPermitted) {
+            return { status: VCHoldingResult.SUBMIT_LATER };
+        } else {
+            return { status: VCHoldingResult.REJECTED };
+        }
+    }
+}
 
+async function initiateConnectionByHolder(): Promise<void> {
+    const agent = await initializeAgent("HOLDER");
     const socketId = await agent.socketId;
 
     if (socketId) {
-        const holderSocketId = socketId;
-        const minimalCompactJson = {
-            from: did,
-            body: {
-                i: { sid: holderSocketId },
-                c: { d: "pet-i.net", a: "connect" },
-            },
-        };
-        const didConnectRequestMessage =
-            DIDConnectRequestMessage.fromJSON(minimalCompactJson);
-        const encoded = didConnectRequestMessage.encode(
-            CompressionLevel.MINIMAL,
+        const encoded = await createAndEncodeRequestMessage(
+            agent.did,
+            socketId,
+            "pet-i.net",
         );
         console.log("Holder make encoded request message: " + encoded);
     } else {
@@ -58,7 +70,45 @@ async function initiateConnectionByHolder(): Promise<void> {
     }
 }
 
-export async function receiveConnectionInitiatedByVerifier(): Promise<void> {
+export async function mockVCsFromVCRequirements(
+    vcRequirements: VCRequirement[],
+): Promise<VerifiableCredential[]> {
+    let VCs: VerifiableCredential[] = [];
+
+    const mockAgent = new InfraDIDCommAgent(
+        "http://data-market.test.newnal.com:9000",
+        holderDid,
+        holderMnemonic,
+        "HOLDER",
+        DID_CHAIN_ENDPOINT,
+    );
+    await mockAgent.init();
+
+    for (const requirement of vcRequirements) {
+        const vc = new VerifiableCredential(requirement.issuer);
+        vc.addContext("https://www.w3.org/2018/credentials/v1");
+        vc.addContext(requirement.vcType);
+        vc.addType("VerifiableCredential");
+        vc.addSubject({
+            id: "did:example:abcdefg",
+            degree: {
+                type: "BachelorDegree",
+                name: "Bachelor of Science and Arts",
+            },
+        });
+
+        const signedVC = await vc.sign(
+            await mockAgent.infraApi.didModule.getKeyDoc(),
+        );
+        VCs.push(signedVC);
+    }
+
+    return VCs;
+}
+
+async function receiveConnectionInitiatedByVerifier(): Promise<void> {
+    mockVCRepository = await mockVCsFromVCRequirements(vcRequirements);
+
     const mnemonic =
         "bamboo absorb chief dog box envelope leisure pink alone service spin more";
     const did = "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";
@@ -67,36 +117,42 @@ export async function receiveConnectionInitiatedByVerifier(): Promise<void> {
         did,
         mnemonic,
         "HOLDER",
+        DID_CHAIN_ENDPOINT,
     );
 
     agent.setDIDAuthCallback(didAuthCallback);
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setVPSubmitDataCallback(VPSubmitDataCallback);
 
-    agent.init();
+    await agent.init();
+
     const socketId = await agent.socketId;
 
     if (socketId) {
-        const verifierSocketId = "YnCN7_LBtf3vDUquACeT";
-        const minimalCompactJson = {
-            from: did,
-            body: {
-                i: { sid: verifierSocketId },
-                c: { d: "pet-i.net", a: "connect" },
-            },
-        };
-        const didConnectRequestMessage =
-            DIDConnectRequestMessage.fromJSON(minimalCompactJson);
-        const encoded = didConnectRequestMessage.encode(CompressionLevel.RAW);
-        console.log("Received encoded request message: " + encoded);
+        const encoded = await createAndEncodeRequestMessage(
+            agent.did,
+            verifierSocketId,
+            "newnal",
+        );
+
+        // 1st: Send VP Submit & Receive VP Submit Res
         await agent.sendDIDAuthInitMessage(encoded);
+
+        // 2nd: Send VP Req Reject
+        await sleep(3000);
+        isPermitted = false;
+
+        // 3rd: SubmitLater due to not prepared VC requirements
+        await sleep(3000);
+        isPermitted = true;
+        mockVCRepository = [];
     } else {
         console.log("Socket ID is null");
     }
 }
 
 async function main() {
-    // await initiateConnectionByHolder();
     await receiveConnectionInitiatedByVerifier();
 }
 
