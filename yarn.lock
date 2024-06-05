@@ -7730,7 +7730,7 @@ __metadata:
     eslint-plugin-security: "npm:^2.1.1"
     eslint-plugin-simple-import-sort: "npm:^12.0.0"
     husky: "npm:9.0.11"
-    infra-did-js: "npm:^1.1.2"
+    infra-did-js: "npm:^1.1.4"
     jest: "npm:29.7.0"
     jose: "npm:^5.2.4"
     jose-browser: "npm:^0.0.1-rc5"
@@ -7753,9 +7753,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"infra-did-js@npm:^1.1.2":
-  version: 1.1.2
-  resolution: "infra-did-js@npm:1.1.2"
+"infra-did-js@npm:^1.1.4":
+  version: 1.1.4
+  resolution: "infra-did-js@npm:1.1.4"
   dependencies:
     "@babel/core": "npm:^7.23.5"
     "@babel/polyfill": "npm:^7.12.1"
@@ -7782,7 +7782,7 @@ __metadata:
     jsonschema: "npm:1.4.1"
     node-fetch: "npm:^2.6.1"
     stream-browserify: "npm:^3.0.0"
-  checksum: 10/fb885c28fa08cbfc584138ad189eee446f4bcd57c8f1b83ebe77715d8f628e09e56de21e2b1bf658f2e7942df77b2475635c2abbc7f0afc54d22a4b86bd56579
+  checksum: 10/b48b9a8b982abb561f7269c6ecf2f66f9c6ce0b4662b1ba39d012848ae519ee42b1fb439e23f7c5b0658beda19f96963c0b1e19a5e6e09d9ffcaa0ebfd9cad57
   languageName: node
   linkType: hard
 
