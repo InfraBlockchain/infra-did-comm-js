@@ -507,7 +507,7 @@ export async function sendVPSubmitRes(
 ): Promise<void> {
     try {
         const VP = VerifiablePresentation.fromJSON(
-            JSON.parse(jwsPayload.body.VP),
+            JSON.parse(jwsPayload.body.vp),
         );
 
         const verifyVPResult = await VP.verify(

@@ -6,6 +6,7 @@
     "main": "dist/src/index.cjs",
     "module": "dist/src/index.modern.js",
     "types": "dist/src/index.d.ts",
+    "type": "module",
     "repository": {
         "type": "git",
         "url": "https://github.com/InfraBlockchain/infra-did-comm-js.git"
