@@ -40,4 +40,21 @@ export class VPSubmitLaterResMessage {
             this.ack = ack;
         }
     }
+
+    /**
+     * Creates an instance from a JSON object.
+     * @param {any} json - The JSON object to convert from.
+     * @returns {VPSubmitLaterResMessage} The new instance created from the JSON object.
+     * @throws {Error} Throws an error if the JSON object is missing required keys.
+     */
+    static fromJSON(json: Record<string, any>): VPSubmitLaterResMessage {
+        return new VPSubmitLaterResMessage(
+            json.id,
+            json.from,
+            json.createdTime,
+            json.expiresTime,
+            json.body.callbackUrl,
+            json.ack,
+        );
+    }
 }

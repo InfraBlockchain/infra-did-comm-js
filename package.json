@@ -1,12 +1,11 @@
 {
     "name": "infra-did-comm-js",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "description": "Communication Protocol using Infra DID",
     "source": "src/index.ts",
     "main": "dist/src/index.cjs",
     "module": "dist/src/index.modern.js",
     "types": "dist/src/index.d.ts",
-    "type": "module",
     "repository": {
         "type": "git",
         "url": "https://github.com/InfraBlockchain/infra-did-comm-js.git"
