@@ -1,6 +1,6 @@
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { CRYPTO_INFO, InfraSS58, VerifiablePresentation } from "infra-did-js";
-import { Socket, io } from "socket.io-client";
+import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 import {
