@@ -40,4 +40,22 @@ export class VPReqRejectMessage {
             this.ack = ack;
         }
     }
+
+    /**
+     * Creates an instance from a JSON object.
+     * @param {any} json - The JSON object to convert from.
+     * @returns {VPReqRejectMessage} The new instance created from the JSON object.
+     * @throws {Error} Throws an error if the JSON object is missing required keys.
+     */
+    static fromJSON(json: Record<string, any>): VPReqRejectMessage {
+        return new VPReqRejectMessage(
+            json.id,
+            json.from,
+            json.to,
+            json.createdTime,
+            json.expiresTime,
+            json.body.reason,
+            json.ack,
+        );
+    }
 }
