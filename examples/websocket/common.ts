@@ -1,6 +1,12 @@
 // common.ts
-import { VerifiableCredential } from "infra-did-js";
-import { CompressionLevel, DIDConnectRequestMessage } from "../../src/messages";
+import { VerifiableCredential, VerifiablePresentation } from "infra-did-js";
+import {
+    CompressionLevel,
+    DIDConnectRequestMessage,
+    VPReqRejectMessage,
+    VPSubmitLaterResMessage,
+    VPSubmitResMessage,
+} from "../../src/messages";
 import { InfraDIDCommAgent, VCRequirement } from "../../src/websocket";
 
 export const verifierDID =
@@ -31,6 +37,25 @@ export function didAuthFailedCallback(peerDID: string): void {
     console.log("DID Auth Failed Callback", peerDID);
 }
 
+export function VPVerifyCallback(vp: VerifiablePresentation): boolean {
+    console.log("VP Verify Callback", vp);
+    return true;
+}
+
+export function VPSubmitResCallback(message: VPSubmitResMessage): void {
+    console.log("VPSubmitResMessage", message);
+}
+
+export function VPReqRejectCallback(message: VPReqRejectMessage): void {
+    console.log("VPReqRejectMessage", message);
+}
+
+export function VPSubmitLaterResCallback(
+    message: VPSubmitLaterResMessage,
+): void {
+    console.log("VPSubmitLaterResMessage", message);
+}
+
 // Agent Initialization
 export async function initializeAgent(
     role: string,
@@ -48,6 +73,10 @@ export async function initializeAgent(
     agent.setDIDAuthCallback(didAuthCallback);
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
+    agent.setVPVerifyCallback(VPVerifyCallback);
+    agent.setVPSubmitResCallback(VPSubmitResCallback);
+    agent.setVPReqRejectCallback(VPReqRejectCallback);
+    agent.setVPSubmitLaterResCallback(VPSubmitLaterResCallback);
 
     await agent.init();
 

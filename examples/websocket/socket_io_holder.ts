@@ -10,6 +10,10 @@ import {
 } from "../../src/websocket";
 import {
     DID_CHAIN_ENDPOINT,
+    VPReqRejectCallback,
+    VPSubmitLaterResCallback,
+    VPSubmitResCallback,
+    VPVerifyCallback,
     createAndEncodeRequestMessage,
     didAuthCallback,
     didAuthFailedCallback,
@@ -20,11 +24,11 @@ import {
     vcRequirements,
 } from "./common";
 
-const verifierSocketId = "TcxmeCPmLlJ9GL_bAC-t";
+const verifierSocketId = "XNuk30LyTjZkisKuADKJ";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
-export function VPSubmitDataCallback(
+export function VPReqCallback(
     vcRequirements: VCRequirement[],
     challenge: string,
 ): VPReqCallbackResponse {
@@ -123,7 +127,11 @@ async function receiveConnectionInitiatedByVerifier(): Promise<void> {
     agent.setDIDAuthCallback(didAuthCallback);
     agent.setDIDConnectedCallback(didConnectedCallback);
     agent.setDIDAuthFailedCallback(didAuthFailedCallback);
-    agent.setVPSubmitDataCallback(VPSubmitDataCallback);
+    agent.setVPReqCallback(VPReqCallback);
+    agent.setVPVerifyCallback(VPVerifyCallback);
+    agent.setVPSubmitResCallback(VPSubmitResCallback);
+    agent.setVPReqRejectCallback(VPReqRejectCallback);
+    agent.setVPSubmitLaterResCallback(VPSubmitLaterResCallback);
 
     await agent.init();
 

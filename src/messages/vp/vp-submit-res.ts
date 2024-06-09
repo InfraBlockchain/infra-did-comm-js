@@ -41,4 +41,22 @@ export class VPSubmitResMessage {
             this.ack = ack;
         }
     }
+
+    /**
+     * Creates an instance from a JSON object.
+     * @param {any} json - The JSON object to convert from.
+     * @returns {VPSubmitResMessage} The new instance created from the JSON object.
+     * @throws {Error} Throws an error if the JSON object is missing required keys.
+     */
+    static fromJSON(json: Record<string, any>): VPSubmitResMessage {
+        return new VPSubmitResMessage(
+            json.id,
+            json.from,
+            json.to,
+            json.createdTime,
+            json.expiresTime,
+            json.body.status,
+            json.ack,
+        );
+    }
 }

@@ -1,5 +1,5 @@
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { CRYPTO_INFO, InfraSS58 } from "infra-did-js";
+import { CRYPTO_INFO, InfraSS58, VerifiablePresentation } from "infra-did-js";
 import { io,Socket } from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
@@ -7,6 +7,9 @@ import {
     DIDAuthInitMessage,
     DIDConnectRequestMessage,
     VPReqMessage,
+    VPReqRejectMessage,
+    VPSubmitLaterResMessage,
+    VPSubmitResMessage,
 } from "../../src/messages";
 import { Context } from "../../src/messages/commons";
 import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
@@ -38,10 +41,15 @@ export class InfraDIDCommAgent {
     didConnectedCallback: (peerDID: string) => void = peerDID => {};
     didAuthFailedCallback: (peerDID: string) => void = peerDID => {};
     didVerifyCallback: (peerDID: string) => boolean = peerDID => true;
-    VPSubmitDataCallback: (
+    VPReqCallback: (
         vcRequirements: VCRequirement[],
         challenge: string,
     ) => VPReqCallbackResponse;
+    VPVerifyCallback: (VP: VerifiablePresentation) => boolean;
+    VPSubmitResCallback: (message: VPSubmitResMessage) => void;
+    VPReqRejectCallback: (message: VPReqRejectMessage) => void;
+    VPSubmitLaterResCallback: (message: VPSubmitLaterResMessage) => void;
+
     /* eslint-enable @typescript-eslint/no-unused-vars */
 
     private _socketIdPromiseResolver: (value: string) => void;
@@ -106,13 +114,37 @@ export class InfraDIDCommAgent {
         this.didVerifyCallback = callback;
     }
 
-    setVPSubmitDataCallback(
+    setVPReqCallback(
         callback: (
             vcRequirements: VCRequirement[],
             challenge: string,
         ) => VPReqCallbackResponse,
     ): void {
-        this.VPSubmitDataCallback = callback;
+        this.VPReqCallback = callback;
+    }
+
+    setVPVerifyCallback(
+        callback: (VP: VerifiablePresentation) => boolean,
+    ): void {
+        this.VPVerifyCallback = callback;
+    }
+
+    setVPSubmitResCallback(
+        callback: (message: VPSubmitResMessage) => void,
+    ): void {
+        this.VPSubmitResCallback = callback;
+    }
+
+    setVPReqRejectCallback(
+        callback: (message: VPReqRejectMessage) => void,
+    ): void {
+        this.VPReqRejectCallback = callback;
+    }
+
+    setVPSubmitLaterResCallback(
+        callback: (message: VPSubmitLaterResMessage) => void,
+    ): void {
+        this.VPSubmitLaterResCallback = callback;
     }
 
     async init(): Promise<void> {
@@ -197,7 +229,11 @@ export class InfraDIDCommAgent {
                 this.didConnectedCallback,
                 this.didAuthFailedCallback,
                 this.didVerifyCallback,
-                this.VPSubmitDataCallback,
+                this.VPReqCallback,
+                this.VPVerifyCallback,
+                this.VPSubmitResCallback,
+                this.VPReqRejectCallback,
+                this.VPSubmitLaterResCallback,
             );
         });
     }

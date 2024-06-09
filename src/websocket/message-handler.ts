@@ -50,15 +50,18 @@ export async function messageHandler(
     mnemonic: string,
     did: string,
     agent: InfraDIDCommAgent,
-    didAuthCallback?: (peerDID: string) => boolean,
-    didConnectedCallback?: (peerDID: string) => void,
-    didAuthFailedCallback?: (peerDID: string) => void,
-    didVerifyCallback?: (peerDID: string) => boolean,
-    VPSubmitDataCallback?: (
+    didAuthCallback: (peerDID: string) => boolean,
+    didConnectedCallback: (peerDID: string) => void,
+    didAuthFailedCallback: (peerDID: string) => void,
+    didVerifyCallback: (peerDID: string) => boolean,
+    VPReqCallback: (
         vcRequirements: VCRequirement[],
         challenge: string,
     ) => VPReqCallbackResponse,
-    VPVerifyCallback?: (issuer: string[]) => boolean,
+    VPVerifyCallback: (vp: VerifiablePresentation) => boolean,
+    VPSubmitResCallback: (message: VPSubmitResMessage) => void,
+    VPReqRejectCallback: (message: VPReqRejectMessage) => void,
+    VPSubmitLaterResCallback: (message: VPSubmitLaterResMessage) => void,
 ) {
     try {
         const header = extractJWEHeader(jwe);
@@ -145,7 +148,7 @@ export async function messageHandler(
                 console.log("DIDAuthFailed Message Received");
                 agent.disconnect();
             } else if (jwsPayload["type"] === "VPReq") {
-                await handleVPReq(jwsPayload, agent, VPSubmitDataCallback);
+                await handleVPReq(jwsPayload, agent, VPReqCallback);
             } else if (jwsPayload["type"] === "VPSubmit") {
                 console.log("VPSubmit Message Received", jwsPayload);
                 await sendVPSubmitRes(
@@ -156,16 +159,21 @@ export async function messageHandler(
                 );
             } else if (jwsPayload["type"] === "VPSubmitRes") {
                 console.log("VPSubmitRes Message Received", jwsPayload);
+                VPSubmitResCallback(VPSubmitResMessage.fromJSON(jwsPayload));
             } else if (jwsPayload["type"] === "VPReqReject") {
                 console.log("VPReqReject Message Received", jwsPayload);
                 await sendVPReqRejectRes(mnemonic, agent);
+                VPReqRejectCallback(VPReqRejectMessage.fromJSON(jwsPayload));
             } else if (jwsPayload["type"] === "VPReqRejectRes") {
                 console.log("VPReqRejectRes Message Received", jwsPayload);
             } else if (jwsPayload["type"] === "VPSubmitLater") {
                 console.log("VPSubmitLater Message Received", jwsPayload);
                 await sendVPSubmitLaterRes(agent);
             } else if (jwsPayload["type"] === "VPSubmitLaterRes") {
-                console.log("VPSubmitLaterRes Message Received", jwsPayload);
+                console.log("≈ Message Received", jwsPayload);
+                VPSubmitLaterResCallback(
+                    VPSubmitLaterResMessage.fromJSON(jwsPayload),
+                );
                 agent.disconnect();
             }
         }
@@ -399,7 +407,7 @@ export async function sendVPSubmit(
 async function handleVPReq(
     jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
-    VPSubmitDataCallback: (
+    VPReqCallback: (
         vcRequirements: VCRequirement[],
         challenge: string,
     ) => VPReqCallbackResponse,
@@ -407,10 +415,7 @@ async function handleVPReq(
     console.log("VPReq Message Received");
     const vcRequirements: VCRequirement[] = jwsPayload.body.vcRequirements;
     const challenge = jwsPayload.body.challenge;
-    const vpReqCallbackResponse = VPSubmitDataCallback(
-        vcRequirements,
-        challenge,
-    );
+    const vpReqCallbackResponse = VPReqCallback(vcRequirements, challenge);
 
     const vcHoldingResult = vpReqCallbackResponse.status;
 
@@ -503,7 +508,7 @@ export async function sendVPSubmitRes(
     mnemonic: string,
     jwsPayload: Record<string, any>,
     agent: InfraDIDCommAgent,
-    VPVerifyCallback: (issuer: string[]) => boolean,
+    VPVerifyCallback: (vp: VerifiablePresentation) => boolean,
 ): Promise<void> {
     try {
         const VP = VerifiablePresentation.fromJSON(
@@ -543,7 +548,7 @@ export async function sendVPSubmitRes(
             "Completed to verify the VP",
         );
 
-        VPVerifyCallback([agent.did]);
+        VPVerifyCallback(VP);
 
         const jwe = await createJWE(vpSubmitResMessage, mnemonic, receiverDID);
 
