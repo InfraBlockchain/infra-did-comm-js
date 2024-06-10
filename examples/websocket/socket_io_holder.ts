@@ -28,12 +28,15 @@ const verifierSocketId = "XNuk30LyTjZkisKuADKJ";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
+<<<<<<< Updated upstream
 export function VPReqCallback(
+=======
+function VPSubmitDataCallback(
+>>>>>>> Stashed changes
     vcRequirements: VCRequirement[],
     challenge: string,
 ): VPReqCallbackResponse {
     const vcRepository = mockVCRepository;
-    // allow all verifiers
 
     const vpReqResult = findMatchingVCRequirements(
         vcRepository,
@@ -144,14 +147,14 @@ async function receiveConnectionInitiatedByVerifier(): Promise<void> {
             "newnal",
         );
 
-        // 1st: Send VP Submit & Receive VP Submit Res
+        // 1st: Permitted Verifier, Set up mockVCRepository
         await agent.sendDIDAuthInitMessage(encoded);
 
-        // 2nd: Send VP Req Reject
+        // 2nd: Not Permitted Verifier, Set up mockVCRepository
         await sleep(3000);
         isPermitted = false;
 
-        // 3rd: SubmitLater due to not prepared VC requirements
+        // 3rd: Permitted Verifier, Not Set up mockVCRepository
         await sleep(3000);
         isPermitted = true;
         mockVCRepository = [];
