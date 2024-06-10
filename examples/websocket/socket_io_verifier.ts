@@ -27,13 +27,13 @@ async function initiateConnectionByVerifier(): Promise<void> {
     while (!agent.isDIDConnected) {
         await sleep(500);
     }
-    // 1st
+    // 1st sendVPReq
     await agent.sendVPReq(vcRequirements);
     await sleep(4000);
-    // 2nd
+    // 2nd sendVPReq
     await agent.sendVPReq(vcRequirements);
     await sleep(4000);
-    // 3rd
+    // 3rd sendVPReq
     await agent.sendVPReq(vcRequirements);
 }
 
