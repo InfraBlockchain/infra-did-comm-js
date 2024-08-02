@@ -28,11 +28,7 @@ const verifierSocketId = "XNuk30LyTjZkisKuADKJ";
 let isPermitted = true;
 let mockVCRepository: VerifiableCredential[];
 
-<<<<<<< Updated upstream
 export function VPReqCallback(
-=======
-function VPSubmitDataCallback(
->>>>>>> Stashed changes
     vcRequirements: VCRequirement[],
     challenge: string,
 ): VPReqCallbackResponse {
