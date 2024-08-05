@@ -1,5 +1,6 @@
 // common.ts
 import { VerifiableCredential, VerifiablePresentation } from "infra-did-js";
+import { InfraDIDCommAgent, VCRequirement } from "../../src/agent";
 import {
     CompressionLevel,
     DIDConnectRequestMessage,
@@ -7,7 +8,6 @@ import {
     VPSubmitLaterResMessage,
     VPSubmitResMessage,
 } from "../../src/messages";
-import { InfraDIDCommAgent, VCRequirement } from "../../src/websocket";
 
 export const verifierDID =
     "did:infra:01:5EX1sTeRrA7nwpFmapyUhMhzJULJSs9uByxHTc6YTAxsc58z";

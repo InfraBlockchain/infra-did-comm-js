@@ -1,6 +1,6 @@
+import { connectRequestDynamic } from "../../src/agent/connect-request";
+import { InfraDIDCommAgent } from "../../src/agent/index";
 import { Context } from "../../src/messages/commons";
-import { connectRequestDynamic } from "../../src/websocket/connect-request";
-import { InfraDIDCommAgent } from "../../src/websocket/index";
 import { DID_CHAIN_ENDPOINT } from "./common";
 
 async function dynamic_qr_works() {

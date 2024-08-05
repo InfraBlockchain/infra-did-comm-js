@@ -10,8 +10,8 @@ import {
     VPReqRejectMessage,
     VPSubmitLaterResMessage,
     VPSubmitResMessage,
-} from "../../src/messages";
-import { Context } from "../../src/messages/commons";
+} from "../messages";
+import { Context } from "../messages/commons";
 import { connectRequestDynamic, connectRequestStatic } from "./connect-request";
 import { messageHandler, sendDIDAuthInit, sendJWE } from "./message-handler";
 import { VCRequirement, VPReqCallbackResponse } from "./types";

@@ -1,13 +1,13 @@
 // socket_io_holder.ts
 import { VerifiableCredential } from "infra-did-js";
-import { sleep } from "../../src/utils/functions";
 import {
     InfraDIDCommAgent,
     VCHoldingResult,
     VCRequirement,
     VPReqCallbackResponse,
     findMatchingVCRequirements,
-} from "../../src/websocket";
+} from "../../src/agent";
+import { sleep } from "../../src/utils/functions";
 import {
     DID_CHAIN_ENDPOINT,
     VPReqRejectCallback,

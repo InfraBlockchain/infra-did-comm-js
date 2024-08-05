@@ -1,4 +1,4 @@
-import { VCRequirement } from "@src/websocket";
+import { VCRequirement } from "@src/agent";
 
 export class VPReqMessage {
     id: string;

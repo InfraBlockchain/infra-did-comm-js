@@ -131,6 +131,8 @@ export async function messageHandler(
                 console.log("DIDAuth Message Received");
                 didVerifyCallback(fromDID);
                 didAuthCallback(fromDID);
+                agent.isDIDConnected = true;
+                agent.isDIDVerified = true;
                 sendDIDConnectedFromDIDAuth(mnemonic, jwsPayload, agent);
             } else if (jwsPayload["type"] === "DIDConnected") {
                 console.log("DIDConnected Message Received");
@@ -273,7 +275,6 @@ export async function sendDIDConnectedFromDIDAuth(
     agent: InfraDIDCommAgent,
 ): Promise<void> {
     try {
-        agent.isDIDVerified = true;
         agent.domain = jwsPayload.body.context.domain;
         const currentTime = Math.floor(Date.now() / 1000);
         const id = uuidv4();
@@ -395,10 +396,6 @@ export async function sendVPSubmit(
         );
 
         await sendJWE(agent, vpSubmitMessage);
-
-        console.log(
-            `VPSubmitMessage sent to ${agent.peerInfo.peerSocketId}, message: ${vpSubmitMessage}`,
-        );
     } catch (error) {
         throw new Error(`Failed to send VPSubmit Message: ${error}`);
     }
